@@ -17,15 +17,22 @@ Options:
 """
 import numpy as np
 from docopt import docopt
+from itertools import izip
 
 from sklearn.externals import joblib
 from sklearn.linear_model import Ridge
 from sklearn.ensemble import RandomForestRegressor
 from sklearn import cross_validation
 from sklearn import metrics
+from sklearn import pls
 
 
 from .models import MODELS
+from .err_analysis import err_analysis
+
+
+mae_score = metrics.make_scorer(metrics.mean_absolute_error,
+                                greater_is_better=False)
 
 
 def load_data():
@@ -41,6 +48,16 @@ def load_data():
     return data
 
 
+def _cross_val(model, X, y, train, test):
+    X_train, y_train = X[train], y[train]
+    X_test, y_test = X[test], y[test]
+
+    model.fit(X_train, y_train)
+    pred = model.predict(X_test)
+    score = metrics.mean_absolute_error(y_test, pred)
+    return score, pred
+
+
 def cross_val(args):
     """Run 5-fold cross-validation. """
     data = load_data()
@@ -49,26 +66,36 @@ def cross_val(args):
 
     model_cls = MODELS[args['<model>']]
     est = Ridge(alpha=0.1, normalize=True)
+    #est = pls.CCA(n_components=50, scale=True, max_iter=500, tol=1e-06)
     #est = RandomForestRegressor(n_estimators=50, max_features=0.3,
     #                            min_samples_leaf=5, bootstrap=False,
     #                            random_state=13)
     model = model_cls(est=est)
 
-    mae_score = metrics.make_scorer(metrics.mean_absolute_error,
-                                    greater_is_better=False)
     print('_' * 80)
     print('Cross-validatoin')
     print
     print model
     print
     print
-    cv = cross_validation.ShuffleSplit(X.shape[0], n_iter=5,
-                                       test_size=0.3, random_state=0)
-    scores = cross_validation.cross_val_score(model, X, y, cv=cv,
-                                              scoring=mae_score,
-                                              verbose=int(args['--verbose']),
-                                              n_jobs=int(args['--n_jobs']))
+    cv = cross_validation.KFold(X.shape[0], n_folds=5, shuffle=True,
+                                random_state=0)
+
+    pool = joblib.Parallel(n_jobs=int(args['--n_jobs']),
+                           verbose=int(args['--verbose']))
+    res = pool(joblib.delayed(_cross_val)(model, X, y, train, test)
+                  for train, test in cv)
+    res = list(res)
+    scores, preds = zip(*res)
+    scores = np.array(scores, dtype=np.float64)
     print("MAE: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
+    pred = np.empty_like(y)
+    for (train, test), fold_pred in izip(cv, preds):
+        pred[test] = fold_pred
+
+    err_analysis(y, pred)
+    import IPython
+    IPython.embed()
 
 
 def train_test(args):
