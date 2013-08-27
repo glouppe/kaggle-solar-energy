@@ -2,6 +2,7 @@
 Solaris
 
 Usage:
+  run train_test <model> [options]
   run cross_val <model> [options]
   run grid_search <model> [options]
   run submit <model> [options]
@@ -19,6 +20,7 @@ from docopt import docopt
 
 from sklearn.externals import joblib
 from sklearn.linear_model import Ridge
+from sklearn.ensemble import RandomForestRegressor
 from sklearn import cross_validation
 from sklearn import metrics
 
@@ -27,20 +29,33 @@ from .models import MODELS
 
 
 def load_data():
-    data = joblib.load('data/data.pkl')
+    #data = joblib.load('data/data.pkl')
+    X_train = np.memmap('data/X_train.dat', dtype='float32', mode='r',
+                        shape=(5113, 15, 11, 5, 9, 16))
+    X_test = np.memmap('data/X_test.dat', dtype='float32', mode='r',
+                        shape=(1796, 15, 11, 5, 9, 16))
+    y_train = np.load('data/y_train.npy')
+    data = {'X_train': X_train,
+            'X_test': X_test,
+            'y_train': y_train}
     return data
 
 
 def cross_val(args):
+    """Run 5-fold cross-validation. """
     data = load_data()
     X = data['X_train']
     y = data['y_train']
 
     model_cls = MODELS[args['<model>']]
-    model = model_cls(est=Ridge(alpha=0.1, normalize=True))
+    est = Ridge(alpha=0.1, normalize=True)
+    #est = RandomForestRegressor(n_estimators=50, max_features=0.3,
+    #                            min_samples_leaf=5, bootstrap=False,
+    #                            random_state=13)
+    model = model_cls(est=est)
 
     mae_score = metrics.make_scorer(metrics.mean_absolute_error,
-                                    greater_is_better=True)
+                                    greater_is_better=False)
     print('_' * 80)
     print('Cross-validatoin')
     print
@@ -56,6 +71,33 @@ def cross_val(args):
     print("MAE: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
 
 
+def train_test(args):
+    """Run train-test experiment. """
+    data = load_data()
+    X = data['X_train']
+    y = data['y_train']
+
+    X_train, X_test, y_train, y_test = cross_validation.train_test_split(
+        X, y, test_size=0.3, random_state=1)
+
+    est = Ridge(alpha=0.1, normalize=True)
+
+    model_cls = MODELS[args['<model>']]
+    model = model_cls(est=est)
+
+    print('_' * 80)
+    print('Train-test')
+    print
+    print model
+    print
+    print
+
+    model.fit(X_train, y_train)  #, X_val=X_test, y_val=y_test)
+    pred = model.predict(X_test)
+
+    print("MAE: %0.2f" % metrics.mean_absolute_error(y_test, pred))
+
+
 def grid_search(args):
     pass
 
@@ -65,7 +107,9 @@ def submit(args):
 
 
 def main(args):
-    if args['cross_val']:
+    if args['train_test']:
+        train_test(args)
+    elif args['cross_val']:
         cross_val(args)
     elif args['grid_search']:
         grid_search(args)
