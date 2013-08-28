@@ -3,11 +3,79 @@ import numpy as np
 from sklearn.base import BaseEstimator
 from sklearn.base import RegressorMixin
 from sklearn.base import TransformerMixin
-from sklearn.pipeline import Pipeline
 from sklearn import metrics
 from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import LabelBinarizer
 
 from nolearn.dbn import DBN
+
+
+class FunctionTransformer(BaseEstimator, TransformerMixin):
+    def __init__(self, ops=(('tcolc_eatm', 'pow', 0.15),)):
+        self.fxs = ['dswrf_sfc', 'dlwrf_sfc', 'uswrf_sfc', 'ulwrf_sfc',
+                    'ulwrf_tatm', 'pwat_eatm', 'tcdc_eatm', 'apcp_sfc',
+                    'pres_msl', 'spfh_2m', 'tcolc_eatm', 'tmax_2m', 'tmin_2m',
+                    'tmp_2m', 'tmp_sfc']
+        self.ops = ops
+
+    def fit(self, *args, **kw):
+        return self
+
+    def transform(self, X, y=None, dates=None):
+        for fx_name, op, args in self.ops:
+            i = self.fxs.index(fx_name)
+            val = X[:, i]
+            if op == 'pow':
+                val = val ** args
+            X[:, i] = val
+
+        out = [X]
+        if y is not None:
+            out.append(y)
+        if dates is not None:
+            out.append(dates)
+
+        if len(out) == 1:
+            return out[0]
+        else:
+            return out
+
+
+class DateExtractor(BaseEstimator, TransformerMixin):
+
+    def __init__(self, op='doy'):
+        self.op = op
+
+    def fit(self, X, y=None, dates=None):
+        if self.op == 'month' and dates is not None:
+            month = dates.map(lambda x: x.month)
+            self.lb = LabelBinarizer()
+            self.lb.fit(month)
+        return self
+
+    def transform(self, X, y=None, dates=None):
+        assert dates is not None
+
+        op = self.op
+        if op == 'doy':
+            vals = dates.map(lambda x: x.dayofyear)
+        elif op == 'center':
+            doy = dates.map(lambda x: x.dayofyear)
+            vals = np.abs(doy - (365.25 / 2.0))
+        elif op == 'month':
+            month = dates.map(lambda x: x.month)
+            vals = self.lb.transform(month)
+
+        vals = vals.astype(np.float32)
+        if vals.ndim == 1:
+            vals = vals.reshape((vals.shape[0], 1))
+
+        X = np.hstack((X, vals))
+
+        if y is None:
+            return X
+        else:
+            return X, y
 
 
 class BaselineTransformer(BaseEstimator, TransformerMixin):
@@ -15,17 +83,23 @@ class BaselineTransformer(BaseEstimator, TransformerMixin):
     def fit(self, X, y=None):
         return self
 
-    def transform(self, X, y=None):
+    def transform(self, X, y=None, dates=None):
         # mean over ensembles
         X = X.mean(axis=2)
         # mean over hours
         X = X.mean(axis=2)
         # reshape
         X = X.reshape(X.shape[0], np.prod(X.shape[1:]))
-        if y is None:
-            return X
+
+        out = [X]
+        if y is not None:
+            out.append(y)
+        if dates is not None:
+            out.append(dates)
+        if len(out) == 1:
+            return out[0]
         else:
-            return X, y
+            return out
 
 
 class EnsembleExampleTransformer(BaseEstimator, TransformerMixin):
@@ -33,7 +107,7 @@ class EnsembleExampleTransformer(BaseEstimator, TransformerMixin):
     def fit(self, X, y=None):
         return self
 
-    def transform(self, X, y=None):
+    def transform(self, X, y=None, dates=None):
         """Creates one row per ensemble member.
 
         If y is given then copy each value n_ensemble times.
@@ -46,50 +120,104 @@ class EnsembleExampleTransformer(BaseEstimator, TransformerMixin):
         X = X.swapaxes(1, 2)
         X = X.reshape(X.shape[0] * X.shape[1], np.prod(X.shape[2:]))
 
-        if y is None:
-            return X
-        else:
+        out = [X]
+        if y is not None:
             y = np.repeat(y, n_ensemble, axis=0)
-            return X, y
+            out.append(y)
+        if dates is not None:
+            dates = np.repeat(dates, n_ensemble, axis=0)
+            out.append(dates)
+
+        if len(out) == 1:
+            return out[0]
+        else:
+            return out
 
 
 class EnsembledRegressor(BaseEstimator, TransformerMixin):
 
-    def __init__(self, est):
+    def __init__(self, est, date='doy', clip=True):
         self.est = est
         self.trans = EnsembleExampleTransformer()
+        self.date = date
+        self.clip = clip
 
-    def fit(self, X, y):
-        X, y = self.trans.transform(X, y)
+    def fit(self, X, y, dates=None, **kw):
+        if dates is None:
+            X, y = self.trans.transform(X, y)
+        else:
+            X, y, dates = self.trans.transform(X, y, dates=dates)
+
+        if self.date:
+            self.date_extr = DateExtractor(op=self.date)
+            self.date_extr.fit(X, dates=dates)
+            X = self.date_extr.transform(X, dates=dates)
+
+        print('fit est on X.shape: %s | y.shape: %s' % (
+            str(X.shape), str(y.shape)))
+        if y.shape[1] == 1:
+            y = y.ravel()
         self.est.fit(X, y)
+        if self.clip:
+            self.clip_high = y.max()
+            self.clip_low = y.min()
         return self
 
-    def predict(self, X):
+    def predict(self, X, dates=None):
         n_ensemble = X.shape[2]
-        X = self.trans.transform(X)
+        if dates is None:
+            X = self.trans.transform(X)
+        else:
+            X, dates = self.trans.transform(X, dates=dates)
+
+        if self.date:
+            X = self.date_extr.transform(X, dates=dates)
+
         pred = self.est.predict(X)
+        if pred.ndim == 1:
+            pred = pred.reshape((pred.shape[0], 1))
         n_stations = pred.shape[1]
         # predict is (n_ensemble * n_days) x n_stations
         pred = pred.reshape((pred.shape[0] / n_ensemble, n_ensemble, n_stations))
         pred = pred.mean(axis=1)
+        if self.clip:
+            pred = np.clip(pred, self.clip_low, self.clip_high)
         return pred
 
 
 class Baseline(BaseEstimator, RegressorMixin):
 
-    def __init__(self, est):
+    def __init__(self, est, date='month'):
         self.est = est
+        self.date = date
 
-        steps = [('trans', BaselineTransformer()), ('est', est)]
-        self.pipeline = Pipeline(steps)
+        self.trans = BaselineTransformer()
 
-    def fit(self, X, y):
-        self.pipeline.fit(X, y)
+    def fit(self, X, y, dates=None, **kw):
+
+        self.trans.fit(X, y)
+        if dates is None:
+            X, y = self.trans.transform(X, y)
+        else:
+            X, y, dates = self.trans.transform(X, y, dates=dates)
+
+        if self.date:
+            self.date_extr = DateExtractor(op=self.date)
+            self.date_extr.fit(X, dates=dates)
+            X = self.date_extr.transform(X, dates=dates)
+
+        print('fitting est on X.shape: %s' % str(X.shape))
+        self.est.fit(X, y)
         return self
 
-    def predict(self, X):
-        pred = self.pipeline.predict(X)
-        return pred
+    def predict(self, X, dates=None):
+        if dates is None:
+            X = self.trans.transform(X)
+        else:
+            X, dates = self.trans.transform(X, dates=dates)
+        if self.date:
+            X = self.date_extr.transform(X, dates=dates)
+        return self.est.predict(X)
 
 
 class DBNRegressor(BaseEstimator, RegressorMixin):
@@ -168,7 +296,8 @@ class DBNModel(BaseEstimator, RegressorMixin):
         self.trans = trans
         self.scaler = StandardScaler()
 
-    def fit(self, X, y, X_val=None, y_val=None):
+    def fit(self, X, y, dates=None, X_val=None, y_val=None, yscaler=None):
+        self.trans.fit(X)
         X = self.trans.transform(X)
         X = self.scaler.fit_transform(X)
 
@@ -178,37 +307,44 @@ class DBNModel(BaseEstimator, RegressorMixin):
 
         def fine_tune_callback(est, epoch):
             y_pred = est.decision_function(X_val)
+            if yscaler is not None:
+                y_pred = yscaler.inverse_transform(y_pred)
             try:
                 print("Epoch: %d - MAE: %0.2f" %
                   (epoch, metrics.mean_absolute_error(y_val, y_pred)))
             except:
                 print('cannot compute val error...')
 
-        est = DBNRegressor(n_hidden_layers=4,
-                           n_units=[4000, 4000, 2000, 2000],
+        est = DBNRegressor(n_hidden_layers=1,
+                           n_units=[5000],
                            epochs=200,
-                           epochs_pretrain=10,
-                           learn_rates_pretrain=[0.0001, 0.001, 0.001, 0.001, 0.001],
-                           learn_rates=0.01,
-                           l2_costs_pretrain=0.000001,
-                           #l2_costs=0.00001,
-                           momentum=0.5,
+                           epochs_pretrain=0,
+                           learn_rates_pretrain=[0.0001, 0.001],
+                           learn_rates=0.0005,
+                           l2_costs_pretrain=0.0,
+                           l2_costs=0.0,
+                           momentum=0.0,
                            verbose=2,
                            scales=0.01,
-                           minibatch_size=200,
-                           #nest_compare=True,
-                           #nest_compare_pretrain=True,
-                           dropouts=[0.2, 0.5, 0.5, 0.5, 0.5],
+                           minibatch_size=64,
+                           nest_compare=True,
+                           nest_compare_pretrain=True,
+                           dropouts=[0.2, 0.5],
                            fine_tune_callback=fine_tune_callback,
                            real_valued_vis=True,
+                           fan_outs=[None, None],
                            )
         self.est = est
+        print('Train on X.shape: %s' % str(X.shape))
         self.est.fit(X, y)
 
         return self
 
-    def predict(self, X):
-        X = self.trans.transform(X)
+    def predict(self, X, dates=None):
+        if dates is None:
+            X = self.trans.transform(X)
+        else:
+            X, dates = self.trans.transform(X, dates=dates)
         X = self.scaler.transform(X)
         pred = self.est.predict(X)
         return pred

@@ -13,21 +13,28 @@ Options:
   -h --help     Show this screen.
   --version     Show version.
   --verbose=LEVEL  Verbosity level [default: 2].
-  --n_jobs=N_JOBS  Verbosity level [default: 1].
+  --n_jobs=N_JOBS  Number of CPUs [default: 1].
+  --scaley      Standardize Y before fit.
 """
 import numpy as np
+import pandas as pd
 from docopt import docopt
 from itertools import izip
 
 from sklearn.externals import joblib
 from sklearn.linear_model import Ridge
+from sklearn.linear_model import RidgeCV
+from sklearn.linear_model import ElasticNet
+from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import GradientBoostingRegressor
 from sklearn import cross_validation
 from sklearn import metrics
 from sklearn import pls
 
 
 from .models import MODELS
+from .models import FunctionTransformer
 from .err_analysis import err_analysis
 
 
@@ -67,6 +74,7 @@ def cross_val(args):
     model_cls = MODELS[args['<model>']]
     est = Ridge(alpha=0.1, normalize=True)
     #est = pls.CCA(n_components=50, scale=True, max_iter=500, tol=1e-06)
+    #est = pls.PLSRegression(n_components=50, scale=True, max_iter=50, tol=1e-06)
     #est = RandomForestRegressor(n_estimators=50, max_features=0.3,
     #                            min_samples_leaf=5, bootstrap=False,
     #                            random_state=13)
@@ -104,10 +112,25 @@ def train_test(args):
     X = data['X_train']
     y = data['y_train']
 
-    X_train, X_test, y_train, y_test = cross_validation.train_test_split(
-        X, y, test_size=0.3, random_state=1)
+    y = y[:, 0:1]
 
+    # no shuffle - past-future split
+    offset = X.shape[0] * 0.7
+    X_train, y_train = X[:offset], y[:offset]
+    X_test, y_test = X[offset:], y[offset:]
+    indices = np.arange(X.shape[0])
+    train, test = indices[:offset], indices[offset:]
+    dates = pd.date_range('1/1/1994', periods=X.shape[0], freq='D')
+
+    #est = ElasticNet(alpha=0.01, normalize=True)
+    #est = RidgeCV(alphas=10. ** np.arange(-4, 2, 1), normalize=True)
     est = Ridge(alpha=0.1, normalize=True)
+    est = RandomForestRegressor(n_estimators=50, verbose=3,
+                                max_features=0.3,
+                                n_jobs=3, bootstrap=False)
+    ## est = GradientBoostingRegressor(n_estimators=100, verbose=3, max_depth=5,
+    ##                                 min_samples_leaf=3, learning_rate=0.1,
+    ##                                 loss='ls')
 
     model_cls = MODELS[args['<model>']]
     model = model_cls(est=est)
@@ -118,11 +141,19 @@ def train_test(args):
     print model
     print
     print
+    scaler = StandardScaler()
+    if args['--scaley']:
+        y_train = scaler.fit_transform(y_train)
 
-    model.fit(X_train, y_train)  #, X_val=X_test, y_val=y_test)
-    pred = model.predict(X_test)
+    model.fit(X_train, y_train, dates=dates[train],
+              X_val=X_test, y_val=y_test, yscaler=scaler)
+    pred = model.predict(X_test, dates=dates[test])
+    if args['--scaley']:
+        pred = scaler.inverse_transform(pred)
 
     print("MAE: %0.2f" % metrics.mean_absolute_error(y_test, pred))
+    import IPython
+    IPython.embed()
 
 
 def grid_search(args):
