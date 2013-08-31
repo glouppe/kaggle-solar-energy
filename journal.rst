@@ -112,3 +112,102 @@ def showit(Z):
     Z = Z.mean(axis=1)
     Z = Z.mean(axis=1)
     pl.figure(); pl.hist(Z.mean(axis=1).mean(axis=1).ravel(), bins=50)
+
+
+28.8.2013
+^^^^^^^^^
+Experiments on single Station[0].
+
+GBRT on baseline w/ doy
+
+GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.1, loss='lad',
+             max_depth=5, max_features=None, min_samples_leaf=3,
+             min_samples_split=2, n_estimators=100, random_state=None,
+             subsample=1.0, verbose=3)
+obj. function was MAE: 1.4M
+
+Train-test
+MAE:  2142931.58
+RMSE: 3178710.18
+
+Findings: better than RF; deep trees seems to be needed; date is imp fx
+          diff between MAE and RMSE is not very large (so using LS seems ok)
+
+
+EnsembledRegressor(clip=True, date=center,
+          est=Ridge(alpha=0.1, copy_X=True, fit_intercept=True, max_iter=None,
+   normalize=True, solver=auto, tol=0.001),
+          est__alpha=0.1, est__copy_X=True, est__fit_intercept=True,
+          est__max_iter=None, est__normalize=True, est__solver=auto,
+          est__tol=0.001)
+
+Train-test
+MAE:  2102127.55  <- still better than GBRT
+RMSE: 3037915.27
+
+
+GBRT on baseline w/ doy
+GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.1, loss='ls',
+             max_depth=5, max_features=None, min_samples_leaf=3,
+             min_samples_split=2, n_estimators=200, random_state=None,
+             subsample=1.0, verbose=3)
+MAE:  2082876.61
+RMSE: 3035662.20
+
+
+Baseline(date=center,
+     est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.01, loss=ls,
+             max_depth=3, max_features=0.3, min_samples_leaf=3,
+             min_samples_split=2, n_estimators=1000, random_state=None,
+             subsample=1.0, verbose=1),
+     est__alpha=0.9, est__init=None, est__learning_rate=0.01, est__loss=ls,
+     est__max_depth=3, est__max_features=0.3, est__min_samples_leaf=3,
+     est__min_samples_split=2, est__n_estimators=1000,
+     est__random_state=None, est__subsample=1.0, est__verbose=1)
+
+fitting est on X.shape: (3579, 301)
+MAE:  1987516.50
+RMSE: 3001021.07
+
+
+Variable transformations
+------------------------
+
+it seems that transformations help: eg. diff between two features and ratio
+
+
+F3: Slope on the grid - both spatial and temporal
+
+F4: feature pooling accross space (time done; doesnt seem to work well)
+
+
+Baseline(date=center,
+     est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.01, loss=ls,
+             max_depth=4, max_features=0.3, min_samples_leaf=3,
+             min_samples_split=2, n_estimators=1000, random_state=None,
+             subsample=1.0, verbose=1),
+     est__alpha=0.9, est__init=None, est__learning_rate=0.01, est__loss=ls,
+     est__max_depth=4, est__max_features=0.3, est__min_samples_leaf=3,
+     est__min_samples_split=2, est__n_estimators=1000,
+     est__random_state=None, est__subsample=1.0, est__verbose=1)
+
+
+fitting est on X.shape: (3579, 2761)
+Includes X_l + X_l time mean
+MAE:  1962555.41
+RMSE: 2965734.97
+
+Baseline(date=center,
+     est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.01, loss=ls,
+             max_depth=4, max_features=0.3, min_samples_leaf=3,
+             min_samples_split=2, n_estimators=1000, random_state=None,
+             subsample=1.0, verbose=1),
+     est__alpha=0.9, est__init=None, est__learning_rate=0.01, est__loss=ls,
+     est__max_depth=4, est__max_features=0.3, est__min_samples_leaf=3,
+     est__min_samples_split=2, est__n_estimators=1000,
+     est__random_state=None, est__subsample=1.0, est__verbose=1)
+fitting est on X.shape: (3579, 2899)
+Includes X_l + X_l time mean + kernel_mid
+MAE:  1953092.20
+RMSE: 2970713.42
+

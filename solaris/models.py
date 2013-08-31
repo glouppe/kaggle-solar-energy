@@ -1,76 +1,135 @@
 import numpy as np
 
+from scipy import signal
+
 from sklearn.base import BaseEstimator
 from sklearn.base import RegressorMixin
 from sklearn.base import TransformerMixin
 from sklearn import metrics
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import LabelBinarizer
+from sklearn.pipeline import Pipeline
 
 from nolearn.dbn import DBN
 
 
+class ValueTransformer(BaseEstimator, TransformerMixin):
+    """Transforms StructuredArray to numpy array. """
+
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X, y=None):
+        X = X.values()
+        print('transform X to shape %s' % str(X.shape))
+        if y is not None:
+            return X, y
+        else:
+            return X
+
+
 class FunctionTransformer(BaseEstimator, TransformerMixin):
-    def __init__(self, ops=(('tcolc_eatm', 'pow', 0.15),)):
-        self.fxs = ['dswrf_sfc', 'dlwrf_sfc', 'uswrf_sfc', 'ulwrf_sfc',
-                    'ulwrf_tatm', 'pwat_eatm', 'tcdc_eatm', 'apcp_sfc',
-                    'pres_msl', 'spfh_2m', 'tcolc_eatm', 'tmax_2m', 'tmin_2m',
-                    'tmp_2m', 'tmp_sfc']
+    def __init__(self, block='nm', ops=(
+        ('tcolc_eatm', 'pow', 0.15),
+        ('apcp_sfc', 'pow', 0.15),
+        ('uswrf_sfc', '/', 'dswrf_sfc'),
+        ('ulwrf_sfc', '/', 'dlwrf_sfc'),
+        ('ulwrf_sfc', '/', 'uswrf_sfc'),
+        ('dlwrf_sfc', '/', 'dswrf_sfc'),
+        ('tmax_2m', '-', 'tmin_2m'),
+        ('tmp_2m', '-', 'tmp_sfc'),
+        ('apcp_sfc', '-', 'pwat_eatm'),
+        ('apcp_sfc', '/', 'pwat_eatm'),
+        ), new_block='nm_trans'):
+        """Apply func transformation to X creating a new block.
+
+        Parameters
+        ----------
+        block : str
+            The name of the block to which ``ops`` are applied.
+        new_block : str
+            The name of the new block holding the result of ``ops``.
+        ops : seq of (left, op, right)
+            The sequence of operations to be applied to ``block``.
+        """
+        self.block = block
         self.ops = ops
+        self.new_block = new_block
 
     def fit(self, *args, **kw):
         return self
 
     def transform(self, X, y=None, dates=None):
-        for fx_name, op, args in self.ops:
-            i = self.fxs.index(fx_name)
-            val = X[:, i]
+        block = []
+        block_name = self.block
+        block_fx_names = []
+        for left, op, right in self.ops:
             if op == 'pow':
-                val = val ** args
-            X[:, i] = val
+                i = X.fx_name[block_name].index(left)
+                vals = X[block_name][:, i]
+                vals = vals ** right
+            elif op == '/':
+                i = X.fx_name[block_name].index(left)
+                j = X.fx_name[block_name].index(right)
+                vals = (X[block_name][:, i] /
+                        X[block_name][:, j])
+                # might be infs in there
+                vals[~np.isfinite(vals)] = 0.0
+            elif op == '-':
+                i = X.fx_name[block_name].index(left)
+                j = X.fx_name[block_name].index(right)
+                vals = (X[block_name][:, i] -
+                        X[block_name][:, j])
 
-        out = [X]
+            if vals.ndim == 1:
+                vals = vals[:, np.newaxis]
+            block.append(vals)
+            block_fx_names.append(''.join(map(str, [left, op, right])))
+
+        block = np.hstack(block)
+        X[self.new_block] = block
+        if hasattr(X, 'fx_names'):
+            X.fx_name[self.new_block] = block_fx_names
         if y is not None:
-            out.append(y)
-        if dates is not None:
-            out.append(dates)
-
-        if len(out) == 1:
-            return out[0]
+            return X, y
         else:
-            return out
+            return X
 
 
-class DateExtractor(BaseEstimator, TransformerMixin):
+class DateTransformer(BaseEstimator, TransformerMixin):
 
     def __init__(self, op='doy'):
         self.op = op
 
-    def fit(self, X, y=None, dates=None):
-        if self.op == 'month' and dates is not None:
-            month = dates.map(lambda x: x.month)
+    def fit(self, X, y=None):
+        if self.op == 'month' and hasattr(X, 'date'):
+            month = X.date.map(lambda x: x.month)
             self.lb = LabelBinarizer()
             self.lb.fit(month)
         return self
 
-    def transform(self, X, y=None, dates=None):
-        assert dates is not None
+    def transform(self, X, y=None):
+        if hasattr(X, 'date'):
+            date = X.date
+            op = self.op
+            if op == 'doy':
+                vals = date.map(lambda x: x.dayofyear)
+            elif op == 'center':
+                doy = date.map(lambda x: x.dayofyear)
+                vals = np.abs(doy - (365.25 / 2.0))
+            elif op == 'month':
+                month = date.map(lambda x: x.month)
+                vals = self.lb.transform(month)
 
-        op = self.op
-        if op == 'doy':
-            vals = dates.map(lambda x: x.dayofyear)
-        elif op == 'center':
-            doy = dates.map(lambda x: x.dayofyear)
-            vals = np.abs(doy - (365.25 / 2.0))
-        elif op == 'month':
-            month = dates.map(lambda x: x.month)
-            vals = self.lb.transform(month)
+            vals = vals.astype(np.float32)
+            if vals.ndim == 1:
+                vals = vals.reshape((vals.shape[0], 1))
 
-        vals = vals.astype(np.float32)
-        if vals.ndim == 1:
-            vals = vals.reshape((vals.shape[0], 1))
-
-        X = np.hstack((X, vals))
+            X['date'] = vals
+            if op == 'month':
+                X.fx_name['date'] = self.lb.classes_.tolist()
+            else:
+                X.fx_name['date'] = self.op
 
         if y is None:
             return X
@@ -78,18 +137,58 @@ class DateExtractor(BaseEstimator, TransformerMixin):
             return X, y
 
 
-class BaselineTransformer(BaseEstimator, TransformerMixin):
+class LocalGlobalTransformer(BaseEstimator, TransformerMixin):
 
     def fit(self, X, y=None):
         return self
 
     def transform(self, X, y=None, dates=None):
         # mean over ensembles
-        X = X.mean(axis=2)
+        X = np.mean(X, axis=2)
+
+        Z = X.copy()
+
         # mean over hours
         X = X.mean(axis=2)
-        # reshape
-        X = X.reshape(X.shape[0], np.prod(X.shape[1:]))
+
+        Xs = [X, Z]
+
+        kernel_hor = np.array([[-1, 1]])
+        X_g = np.empty(X.shape[:2] + (X.shape[2], X.shape[3] - 1))
+        for i in range(X.shape[0]):
+            for j in range(X.shape[1]):
+                X_g[i, j, :, :] = signal.convolve2d(X[i, j], kernel_hor,
+                                                    mode='valid')
+        #Xs.append(X_g)
+
+        kernel_ver = np.array([[-1], [1]])
+        X_g = np.empty(X.shape[:2] + (X.shape[2] - 1, X.shape[3]))
+        for i in range(X.shape[0]):
+            for j in range(X.shape[1]):
+                X_g[i, j, :, :] = signal.convolve2d(X[i, j], kernel_ver,
+                                                    mode='valid')
+        #Xs.append(X_g)
+
+        kernel_small = np.array([[0.25, 0.25], [0.25, 0.25]])
+        X_g = np.empty(X.shape[:2] + (X.shape[2] - 1, X.shape[3] - 1))
+        for i in range(X.shape[0]):
+            for j in range(X.shape[1]):
+                X_g[i, j, :, :] = signal.convolve2d(X[i, j], kernel_small,
+                                                    mode='valid')
+        #Xs.append(X_g)
+
+        kernel_mid = np.array([[0.125, 0.125, 0.125],
+                               [0.125, 0.0, 0.125],
+                               [0.125, 0.125, 0.125]])
+        X_g = np.empty(X.shape[:2] + (X.shape[2] - 2, X.shape[3] - 2))
+        for i in range(X.shape[0]):
+            for j in range(X.shape[1]):
+                X_g[i, j, :, :] = signal.convolve2d(X[i, j], kernel_mid,
+                                                    mode='valid')
+        Xs.append(X_g)
+
+        Xs = [X_b.reshape(X_b.shape[0], np.prod(X_b.shape[1:])) for X_b in Xs]
+        X = np.hstack(Xs)
 
         out = [X]
         if y is not None:
@@ -100,6 +199,26 @@ class BaselineTransformer(BaseEstimator, TransformerMixin):
             return out[0]
         else:
             return out
+
+
+class BaselineTransformer(BaseEstimator, TransformerMixin):
+
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X, y=None):
+        # mean over ensembles
+        X_nm = np.mean(X.nm, axis=2)
+        # mean over hours
+        X_nm = np.mean(X_nm, axis=2)
+        # reshape
+        X_nm = X_nm.reshape(X_nm.shape[0], np.prod(X_nm.shape[1:]))
+
+        X['nm'] = X_nm
+        if y is not None:
+            return X, y
+        else:
+            return X
 
 
 class EnsembleExampleTransformer(BaseEstimator, TransformerMixin):
@@ -133,10 +252,18 @@ class EnsembleExampleTransformer(BaseEstimator, TransformerMixin):
         else:
             return out
 
+    def mean_predictions(self, pred):
+        if pred.ndim == 1:
+            pred = pred.reshape((pred.shape[0], 1))
+        n_stations = pred.shape[1]
+        pred = pred.reshape((pred.shape[0] / 11, 11, n_stations))
+        pred = np.mean(pred, axis=1)
+        return pred
+
 
 class EnsembledRegressor(BaseEstimator, TransformerMixin):
 
-    def __init__(self, est, date='doy', clip=True):
+    def __init__(self, est, date='center', clip=False):
         self.est = est
         self.trans = EnsembleExampleTransformer()
         self.date = date
@@ -149,7 +276,7 @@ class EnsembledRegressor(BaseEstimator, TransformerMixin):
             X, y, dates = self.trans.transform(X, y, dates=dates)
 
         if self.date:
-            self.date_extr = DateExtractor(op=self.date)
+            self.date_extr = DateTransformer(op=self.date)
             self.date_extr.fit(X, dates=dates)
             X = self.date_extr.transform(X, dates=dates)
 
@@ -178,46 +305,48 @@ class EnsembledRegressor(BaseEstimator, TransformerMixin):
             pred = pred.reshape((pred.shape[0], 1))
         n_stations = pred.shape[1]
         # predict is (n_ensemble * n_days) x n_stations
-        pred = pred.reshape((pred.shape[0] / n_ensemble, n_ensemble, n_stations))
-        pred = pred.mean(axis=1)
+        pred = self.trans.mean_predictions(pred)
         if self.clip:
             pred = np.clip(pred, self.clip_low, self.clip_high)
         return pred
 
 
-class Baseline(BaseEstimator, RegressorMixin):
+class PipelineModel(BaseEstimator, RegressorMixin):
 
-    def __init__(self, est, date='month'):
+    def __init__(self, pipeline):
+        self.pipeline = pipeline
+
+    def fit(self, X, y, **kw):
+        if y.shape[1] == 1:
+            y = y.ravel()
+        self.pipeline.fit(X, y)
+        self._X = X
+        self._y = y
+        return self
+
+    def predict(self, X):
+        pred = self.pipeline.predict(X)
+        if pred.ndim == 1:
+            pred = pred.reshape((pred.shape[0], 1))
+        return pred
+
+
+class Baseline(PipelineModel):
+
+    def __init__(self, est, date='center'):
         self.est = est
         self.date = date
 
-        self.trans = BaselineTransformer()
-
-    def fit(self, X, y, dates=None, **kw):
-
-        self.trans.fit(X, y)
-        if dates is None:
-            X, y = self.trans.transform(X, y)
-        else:
-            X, y, dates = self.trans.transform(X, y, dates=dates)
-
+        steps=[('bl_trans', BaselineTransformer())]
         if self.date:
-            self.date_extr = DateExtractor(op=self.date)
-            self.date_extr.fit(X, dates=dates)
-            X = self.date_extr.transform(X, dates=dates)
+            steps.append(('date', DateTransformer(op=self.date)))
 
-        print('fitting est on X.shape: %s' % str(X.shape))
-        self.est.fit(X, y)
-        return self
+        steps.append(('vals', ValueTransformer()))
+        steps.append(('est', est))
 
-    def predict(self, X, dates=None):
-        if dates is None:
-            X = self.trans.transform(X)
-        else:
-            X, dates = self.trans.transform(X, dates=dates)
-        if self.date:
-            X = self.date_extr.transform(X, dates=dates)
-        return self.est.predict(X)
+        self.pipeline = Pipeline(steps)
+
+        #self.trans = LocalGlobalTransformer()
 
 
 class DBNRegressor(BaseEstimator, RegressorMixin):
@@ -242,6 +371,7 @@ class DBNRegressor(BaseEstimator, RegressorMixin):
                  nest_compare=True,
                  nest_compare_pretrain=None,
                  fan_outs=None,
+                 nesterov=False,
                  ):
         self.n_hidden_layers = n_hidden_layers
         self.n_units = n_units
@@ -250,6 +380,7 @@ class DBNRegressor(BaseEstimator, RegressorMixin):
         self.learn_rates_pretrain = learn_rates_pretrain
         self.learn_rates = learn_rates
         self.learn_rate_decays = learn_rate_decays
+        self.learn_rate_minimums = learn_rate_minimums
         self.l2_costs_pretrain = l2_costs_pretrain
         self.l2_costs = l2_costs
         self.momentum = momentum
@@ -266,6 +397,7 @@ class DBNRegressor(BaseEstimator, RegressorMixin):
         self.nest_compare = nest_compare
         self.nest_compare_pretrain = nest_compare_pretrain
         self.fan_outs = fan_outs
+        self.nesterov = nesterov
 
     def fit(self, X, y, X_pretrain=None):
         n_outputs = y.shape[1]
@@ -285,20 +417,23 @@ class DBNRegressor(BaseEstimator, RegressorMixin):
         self.dbn.fit(X, y, X_pretrain=X_pretrain)
 
     def predict(self, X):
-        return self.dbn.decision_function(X)
+        return self.dbn.chunked_decision_function(X)
 
 
 class DBNModel(BaseEstimator, RegressorMixin):
 
-    def __init__(self, est=None, trans=None):
-        if trans is None:
+    def __init__(self, est=None, transformer='ensemble'):
+        if transformer == 'baseline':
             trans = BaselineTransformer()
+        elif transformer == 'ensemble':
+            trans = EnsembleExampleTransformer()
+        self.transformer = transformer
         self.trans = trans
         self.scaler = StandardScaler()
 
     def fit(self, X, y, dates=None, X_val=None, y_val=None, yscaler=None):
-        self.trans.fit(X)
-        X = self.trans.transform(X)
+        self.trans.fit(X, y)
+        X, y = self.trans.transform(X, y)
         X = self.scaler.fit_transform(X)
 
         if X_val is not None:
@@ -306,7 +441,9 @@ class DBNModel(BaseEstimator, RegressorMixin):
             X_val = self.scaler.transform(X_val)
 
         def fine_tune_callback(est, epoch):
-            y_pred = est.decision_function(X_val)
+            y_pred = est.chunked_decision_function(X_val)
+            if self.transformer == 'ensemble':
+                y_pred = self.trans.mean_predictions(y_pred)
             if yscaler is not None:
                 y_pred = yscaler.inverse_transform(y_pred)
             try:
@@ -316,23 +453,26 @@ class DBNModel(BaseEstimator, RegressorMixin):
                 print('cannot compute val error...')
 
         est = DBNRegressor(n_hidden_layers=1,
-                           n_units=[5000],
-                           epochs=200,
+                           n_units=[1000, 1000],
+                           epochs=20,
                            epochs_pretrain=0,
-                           learn_rates_pretrain=[0.0001, 0.001],
-                           learn_rates=0.0005,
+                           learn_rates_pretrain=[0.0001, 0.001, 0.001],
+                           learn_rates=0.001, # tuned
+                           #learn_rate_decays=0.9,
+                           #learn_rate_minimums=0.00001,
                            l2_costs_pretrain=0.0,
-                           l2_costs=0.0,
+                           l2_costs=0.00001,
                            momentum=0.0,
                            verbose=2,
-                           scales=0.01,
+                           scales=0.05, # tuned
                            minibatch_size=64,
+                           nesterov=False,
                            nest_compare=True,
                            nest_compare_pretrain=True,
-                           dropouts=[0.2, 0.5],
+                           dropouts=[0.1, 0.5, 0.5],
                            fine_tune_callback=fine_tune_callback,
                            real_valued_vis=True,
-                           fan_outs=[None, None],
+                           fan_outs=[None, 15, None],
                            )
         self.est = est
         print('Train on X.shape: %s' % str(X.shape))
