@@ -6,6 +6,7 @@ Usage:
   run cross_val <model> [options]
   run grid_search <model> [options]
   run submit <model> [options]
+  run inspect
   run -h | --help
   run --version
 
@@ -110,36 +111,31 @@ def train_test(args):
     X = data['X_train']
     y = data['y_train']
 
-    print X.blocks.keys()
-    print X.fx_name
-
-    y = y[:, 0:1]
-
     # no shuffle - past-future split
     offset = X.shape[0] * 0.7
     X_train, y_train = X[:offset], y[:offset]
     X_test, y_test = X[offset:], y[offset:]
 
-    est = RidgeCV(alphas=10. ** np.arange(-4, 2, 1), normalize=True)
+    ## est = RidgeCV(alphas=10. ** np.arange(-4, 2, 1), normalize=True)
     ## est = Ridge(alpha=0.1, normalize=True)
-    ## est = RandomForestRegressor(n_estimators=100, verbose=3,
-    ##                             max_features=0.3, min_samples_leaf=3,
-    ##                             n_jobs=3, bootstrap=False)
-    ## est = GradientBoostingRegressor(n_estimators=1000, verbose=1, max_depth=4,
-    ##                                 min_samples_leaf=3, learning_rate=0.01,
+    est = RandomForestRegressor(n_estimators=25, verbose=3,
+                                max_features=0.3, min_samples_leaf=3,
+                                n_jobs=1, bootstrap=False)
+    ## est = GradientBoostingRegressor(n_estimators=200, verbose=1, max_depth=4,
+    ##                                 min_samples_leaf=3, learning_rate=0.1,
     ##                                 max_features=0.3, random_state=1,
     ##                                 loss='ls')
 
-    #model_cls = MODELS[args['<model>']]
-    #model = model_cls(est=est)
+    model_cls = MODELS[args['<model>']]
+    model = model_cls(est=est)
 
-    steps = [('baseline', BaselineTransformer()),
-             ('date', DateTransformer(op='center')),
-             ('ft', FunctionTransformer(block='nm', new_block='nmft')),
-             ('val', ValueTransformer()),
-             ('est', est)
-             ]
-    model = PipelineModel(Pipeline(steps))
+    ## steps = [('baseline', BaselineTransformer()),
+    ##          ('date', DateTransformer(op='center')),
+    ##          ('ft', FunctionTransformer(block='nm', new_block='nmft')),
+    ##          ('val', ValueTransformer()),
+    ##          ('est', est)
+    ##          ]
+    ## model = PipelineModel(Pipeline(steps))
 
     print('_' * 80)
     print('Train-test')
@@ -172,6 +168,14 @@ def submit(args):
     pass
 
 
+def inspect(args):
+    data = load_data()
+    X = data['X_train']
+    y = data['y_train']
+    import IPython
+    IPython.embed()
+
+
 def main(args):
     if args['train_test']:
         train_test(args)
@@ -181,6 +185,8 @@ def main(args):
         grid_search(args)
     elif args['submit']:
         submit(args)
+    elif args['inspect']:
+        inspect(args)
 
 
 if __name__ == '__main__':

@@ -33,6 +33,7 @@ def load_GEFS_data(directory, fx_names, file_sub_str):
     X.fx_name = OrderedDict()
     X.fx_name['nm'] = fx_names
     X.fx_name['date'] = ['date']
+
     return X
 
 
@@ -72,6 +73,12 @@ def main(data_dir='./data', files_to_use='all'):
 
     X_test = load_GEFS_data(os.path.join(data_dir, 'test'),
                             files_to_use, test_sub_str)
+
+    # add station info to structured arrays
+    station_info = pd.read_csv('data/station_info.csv')
+    station_info = station_info[['nlat', 'elon', 'elev']].values
+    X_train.station_info = station_info
+    X_test.station_info = station_info
 
     import IPython
     IPython.embed()

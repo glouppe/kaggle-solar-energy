@@ -1,4 +1,5 @@
 import numpy as np
+import gc
 
 from scipy import signal
 
@@ -63,7 +64,10 @@ class FunctionTransformer(BaseEstimator, TransformerMixin):
         block = []
         block_name = self.block
         block_fx_names = []
-        for left, op, right in self.ops:
+        block_shape = X[self.block].shape
+        out = np.empty((block_shape[0], len(self.ops)) +
+                        block_shape[2:])
+        for i, (left, op, right) in enumerate(self.ops):
             if op == 'pow':
                 i = X.fx_name[block_name].index(left)
                 vals = X[block_name][:, i]
@@ -81,13 +85,10 @@ class FunctionTransformer(BaseEstimator, TransformerMixin):
                 vals = (X[block_name][:, i] -
                         X[block_name][:, j])
 
-            if vals.ndim == 1:
-                vals = vals[:, np.newaxis]
-            block.append(vals)
+            out[:, i] = vals
             block_fx_names.append(''.join(map(str, [left, op, right])))
 
-        block = np.hstack(block)
-        X[self.new_block] = block
+        X[self.new_block] = out
         if hasattr(X, 'fx_names'):
             X.fx_name[self.new_block] = block_fx_names
         if y is not None:
@@ -135,6 +136,75 @@ class DateTransformer(BaseEstimator, TransformerMixin):
             return X
         else:
             return X, y
+
+
+class LocalTransformer(BaseEstimator, TransformerMixin):
+
+    k = 2
+
+    def fit(self, X, y=None):
+        assert y is not None
+        n_stations = y.shape[1]
+        self.n_stations = n_stations
+
+        stid = np.arange(98)
+        self.stid_lb = LabelBinarizer()
+        self.stid_lb.fit(stid)
+        return self
+
+    def transform(self, X, y=None, dates=None):
+        k = self.k
+        n_days = X.shape[0]
+
+        ll_coord = X.station_info[:, 0:2]
+        lat_idx = np.searchsorted(X.lat, ll_coord[:, 0])
+        lon_idx = np.searchsorted(X.lon, ll_coord[:, 1] + 360)
+
+        blocks = []
+
+        for b_name, X_b in X.blocks.iteritems():
+            print 'localizing block: %s' % b_name
+            if X_b.ndim == 6:
+                X_b = np.mean(X_b, axis=2)
+                X_b = np.mean(X_b, axis=2)
+                # X_b_l.shape: n_stations * n_days, n_fx, n_lat, n_lon
+                X_b_l = np.empty((n_days * self.n_stations, X_b.shape[1],
+                                   k * 2 + 1, k * 2 + 1))
+                print 'X_b_l.shape', X_b_l.shape
+
+                for i in range(self.n_stations):
+                    lai, loi = lat_idx[i], lon_idx[i]
+                    local_grid = X_b[:, :, lai - k:lai + k + 1,
+                                     loi - k: loi + k + 1]
+                    X_b_l[i*n_days:((i+1) * n_days), :, :, :] = local_grid
+
+                X_b_l = X_b_l.reshape((X_b_l.shape[0], np.prod(X_b_l.shape[1:])))
+            elif X_b.ndim in (1, 2):
+                X_b_l = np.tile(X_b.ravel(), self.n_stations)[:, np.newaxis]
+            else:
+                raise ValueError('%s has wrong dim: %d' % (b_name, X_b.ndim))
+
+            print b_name, X_b_l.shape
+            blocks.append(X_b_l)
+            gc.collect()
+
+        del X_b, X_b_l
+
+        ## stid = np.repeat(self.stid_lb.classes_, n_days)
+        ## stid_enc = self.stid_lb.transform(stid)
+        ## blocks.append(stid_enc)
+
+        # lat, lon, elev
+        blocks.append(np.repeat(X.station_info, n_days, axis=0))
+        X = np.hstack(blocks)
+        del blocks
+
+        if y is not None:
+            # flatten y by concatenating cols
+            y = y.ravel(1)
+            return X, y
+        else:
+            return X
 
 
 class LocalGlobalTransformer(BaseEstimator, TransformerMixin):
@@ -308,6 +378,47 @@ class EnsembledRegressor(BaseEstimator, TransformerMixin):
         pred = self.trans.mean_predictions(pred)
         if self.clip:
             pred = np.clip(pred, self.clip_low, self.clip_high)
+        return pred
+
+
+class LocalModel(BaseEstimator, RegressorMixin):
+
+    def __init__(self, est):
+        self.est = est
+        steps = [('date', DateTransformer(op='center')),
+                 ('ft', FunctionTransformer(block='nm', new_block='nmft',
+                                            ops=(
+                                                ('uswrf_sfc', '/', 'dswrf_sfc'),
+                                                ('ulwrf_sfc', '/', 'dlwrf_sfc'),
+                                                ('ulwrf_sfc', '/', 'uswrf_sfc'),
+                                                ('dlwrf_sfc', '/', 'dswrf_sfc'),
+                                                ## ('tmax_2m', '-', 'tmin_2m'),
+                                                ## ('tmp_2m', '-', 'tmp_sfc'),
+                                                ## ('apcp_sfc', '-', 'pwat_eatm'),
+                                                ## ('apcp_sfc', '/', 'pwat_eatm'),
+                                                ))),
+                 ]
+        self.pipeline = Pipeline(steps)
+        self.local = LocalTransformer()
+
+    def fit(self, X, y, **kw):
+        self.n_stations = y.shape[1]
+        X = self.pipeline.transform(X)
+        gc.collect()
+        self.local.fit(X, y)
+        X, y = self.local.transform(X, y)
+        gc.collect()
+        self.est.fit(X, y)
+        return self
+
+    def predict(self, X):
+        n_days = X.shape[0]
+        X = self.pipeline.transform(X)
+        X = self.local.transform(X)
+        pred = self.est.predict(X)
+        print X.shape, pred.shape
+        # reshape - first read days (per station)
+        pred = pred.reshape((self.n_stations, n_days)).T
         return pred
 
 
@@ -492,4 +603,5 @@ class DBNModel(BaseEstimator, RegressorMixin):
 
 MODELS = {'baseline': Baseline,
           'ensemble': EnsembledRegressor,
-          'dbn': DBNModel}
+          'dbn': DBNModel,
+          'local': LocalModel}

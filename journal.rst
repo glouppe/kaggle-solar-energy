@@ -211,3 +211,30 @@ Includes X_l + X_l time mean + kernel_mid
 MAE:  1953092.20
 RMSE: 2970713.42
 
+
+________________________________________________________________________________
+
+LocalModel
+
+Train-test
+
+LocalModel(est=RidgeCV(alphas=[  1.00000e-04   1.00000e-03   1.00000e-02   1.00000e-01   1.00000e+00
+   1.00000e+01],
+    cv=None, fit_intercept=True, gcv_mode=None, loss_func=None,
+    normalize=True, score_func=None, scoring=None, store_cv_values=False),
+      est__alphas=[  1.00000e-04   1.00000e-03   1.00000e-02   1.00000e-01   1.00000e+00
+   1.00000e+01],
+      est__cv=None, est__fit_intercept=True, est__gcv_mode=None,
+      est__loss_func=None, est__normalize=True, est__score_func=None,
+      est__scoring=None, est__store_cv_values=False)
+
+
+X_nm_l.shape (350742, 15, 5, 5)
+(350742, 375) (350742, 98)
+(350742, 378) (350742,)
+X_nm_l.shape (150332, 15, 5, 5)
+(150332, 375) (150332, 98)
+# use lat-lon-elev of station
+(150332, 378) (150332,)
+MAE:  2133943.60
+RMSE: 3054626.83
