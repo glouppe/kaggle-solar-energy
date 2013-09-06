@@ -238,3 +238,21 @@ X_nm_l.shape (150332, 15, 5, 5)
 (150332, 378) (150332,)
 MAE:  2133943.60
 RMSE: 3054626.83
+
+
+
+LocalModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.1, loss='ls',
+             max_depth=4, max_features=0.3, min_samples_leaf=3,
+             min_samples_split=2, n_estimators=400, random_state=1,
+             subsample=1.0, verbose=1))
+Pipeline(steps=[('date', DateTransformer(op='center')), ('ft', FunctionTransformer(block='nm', new_block='nmft',
+          ops=(('uswrf_sfc', '/', 'dswrf_sfc'), ('ulwrf_sfc', '/', 'dlwrf_sfc'), ('ulwrf_sfc', '/', 'uswrf_sfc'), ('dlwrf_sfc', '/', 'dswrf_sfc'))))])
+FeatureUnion(n_jobs=1,
+       transformer_list=[('hm_k2', LocalTransformer(fxs=None, hour_mean=True, k=2)), ('h_k1_3fx', LocalTransformer(fxs={'nm': ['dswrf_sfc', 'uswrf_sfc', 'pwat_eatm']},
+         hour_mean=False, k=1))],
+       transformer_weights=None)
+
+
+MAE:  1934130.62
+RMSE: 2856188.81
+R2: 0.86

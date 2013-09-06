@@ -4,10 +4,19 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 
-def err_analysis(y_true, y_pred):
-    index = pd.date_range('1/1/1994', periods=y_true.shape[0], freq='D')
-    station_info = pd.read_csv('data/station_info.csv')
-    station_residuals = pd.DataFrame(index=index, columns=station_info['stid'],
+def err_analysis(y_true, y_pred, station_info=None, date=None):
+    if date is None:
+        index = pd.date_range('1/1/1994', periods=y_true.shape[0], freq='D')
+    else:
+        index = date
+
+    if station_info is None:
+        station_info = pd.read_csv('data/station_info.csv')
+        st_cols = station_info['stid']
+    else:
+        st_cols = np.arange(station_info.shape[0])
+
+    station_residuals = pd.DataFrame(index=index, columns=st_cols,
                                      data=(y_true - y_pred))
 
     # plot MAE by day
@@ -43,10 +52,10 @@ def err_analysis(y_true, y_pred):
 
     # plot stations on lon-lat grid and colorcode MAE to
     # see spatial-mae correlation
-    station_mae.name = 'mae'
-    station_info = station_info.join(station_mae, on='stid')
-    plt.figure()
-    plt.scatter(station_info.elon, station_info.nlat,
-                c=station_info.mae / station_info.mae.max())
-    plt.colorbar()
+    ## station_mae.name = 'mae'
+    ## station_info = station_info.join(station_mae, on='stid')
+    ## plt.figure()
+    ## plt.scatter(station_info.elon, station_info.nlat,
+    ##             c=station_info.mae / station_info.mae.max())
+    ## plt.colorbar()
     plt.show()

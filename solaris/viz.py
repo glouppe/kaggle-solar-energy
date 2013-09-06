@@ -15,6 +15,7 @@ from matplotlib import pyplot as plt
 def plot_fx_imp(est, fx_names, k=50):
     try:
         fx_imp = est.feature_importances_
+        fx_imp = fx_imp / fx_imp.max()
     except:
         fx_imp = np.abs(est.coef_)
 

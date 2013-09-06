@@ -18,7 +18,7 @@ Options:
   --scaley      Standardize Y before fit.
 """
 import numpy as np
-import pandas as pd
+
 from docopt import docopt
 from itertools import izip
 
@@ -33,7 +33,6 @@ from sklearn.pipeline import Pipeline
 from sklearn import cross_validation
 from sklearn import metrics
 from sklearn import pls
-from sklearn.earth import Earth
 
 
 from .models import MODELS
@@ -70,13 +69,13 @@ def cross_val(args):
     X = data['X_train']
     y = data['y_train']
 
+    # just first 50 stations (otherwise too much)
+    y = y[:, :50]
+    X.station_info = X.station_info[:50]
+
     model_cls = MODELS[args['<model>']]
-    est = Ridge(alpha=0.1, normalize=True)
-    #est = pls.CCA(n_components=50, scale=True, max_iter=500, tol=1e-06)
-    #est = pls.PLSRegression(n_components=50, scale=True, max_iter=50, tol=1e-06)
-    #est = RandomForestRegressor(n_estimators=50, max_features=0.3,
-    #                            min_samples_leaf=5, bootstrap=False,
-    #                            random_state=13)
+    est = Ridge(alpha=0.0001, normalize=True)
+
     model = model_cls(est=est)
 
     print('_' * 80)
@@ -111,20 +110,24 @@ def train_test(args):
     X = data['X_train']
     y = data['y_train']
 
+    # just first 50 stations (otherwise too much)
+    y = y[:, :25]
+    X.station_info = X.station_info[:25]
+
     # no shuffle - past-future split
     offset = X.shape[0] * 0.7
     X_train, y_train = X[:offset], y[:offset]
     X_test, y_test = X[offset:], y[offset:]
 
-    ## est = RidgeCV(alphas=10. ** np.arange(-4, 2, 1), normalize=True)
-    ## est = Ridge(alpha=0.1, normalize=True)
-    est = RandomForestRegressor(n_estimators=25, verbose=3,
-                                max_features=0.3, min_samples_leaf=3,
-                                n_jobs=1, bootstrap=False)
-    ## est = GradientBoostingRegressor(n_estimators=200, verbose=1, max_depth=4,
-    ##                                 min_samples_leaf=3, learning_rate=0.1,
-    ##                                 max_features=0.3, random_state=1,
-    ##                                 loss='ls')
+    ## est = RidgeCV(alphas=10. ** np.arange(-6, -1, 1), normalize=True)
+    ## est = Ridge(alpha=0.00001, normalize=True)
+    ## est = RandomForestRegressor(n_estimators=25, verbose=3,
+    ##                             max_features=0.3, min_samples_leaf=3,
+    ##                             n_jobs=1, bootstrap=False)
+    est = GradientBoostingRegressor(n_estimators=400, verbose=1, max_depth=4,
+                                    min_samples_leaf=3, learning_rate=0.1,
+                                    max_features=0.3, random_state=1,
+                                    loss='ls')
 
     model_cls = MODELS[args['<model>']]
     model = model_cls(est=est)
@@ -156,6 +159,7 @@ def train_test(args):
 
     print("MAE:  %0.2f" % metrics.mean_absolute_error(y_test, pred))
     print("RMSE: %0.2f" % np.sqrt(metrics.mean_squared_error(y_test, pred)))
+    print("R2: %0.2f" % metrics.r2_score(y_test, pred))
     import IPython
     IPython.embed()
 
