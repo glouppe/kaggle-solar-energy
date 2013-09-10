@@ -2,6 +2,8 @@ import numpy as np
 import gc
 import IPython
 
+from time import time
+from collections import OrderedDict
 from scipy import signal
 
 from sklearn.base import BaseEstimator
@@ -14,6 +16,8 @@ from sklearn.pipeline import Pipeline, FeatureUnion
 
 from nolearn.dbn import DBN
 
+from .sa import StructuredArray
+
 
 class ValueTransformer(BaseEstimator, TransformerMixin):
     """Transforms StructuredArray to numpy array. """
@@ -24,10 +28,7 @@ class ValueTransformer(BaseEstimator, TransformerMixin):
     def transform(self, X, y=None):
         X = X.values()
         print('transform X to shape %s' % str(X.shape))
-        if y is not None:
-            return X, y
-        else:
-            return X
+        return X
 
 
 class FunctionTransformer(BaseEstimator, TransformerMixin):
@@ -135,10 +136,7 @@ class DateTransformer(BaseEstimator, TransformerMixin):
             else:
                 X.fx_name['date'] = self.op
 
-        if y is None:
-            return X
-        else:
-            return X, y
+        return X
 
 
 class FeatureDelTransformer(BaseEstimator, TransformerMixin):
@@ -161,10 +159,14 @@ class FeatureDelTransformer(BaseEstimator, TransformerMixin):
 
 class LocalTransformer(BaseEstimator, TransformerMixin):
 
-    def __init__(self, k=2, fxs=None, hour_mean=True):
+    def __init__(self, k=2, fxs=None, hour_mean=True, aux=True, ens_std=False,
+                 hour_std=False):
         self.k = k
         self.hour_mean = hour_mean
         self.fxs = fxs
+        self.aux = aux
+        self.ens_std = ens_std
+        self.hour_std = hour_std
 
     def fit(self, X, y=None):
         assert y is not None
@@ -211,7 +213,9 @@ class LocalTransformer(BaseEstimator, TransformerMixin):
                 raise ValueError('%s has wrong dim: %d' % (b_name, X_b.ndim))
 
         # num of features - based on blocks + station info (5 fx)
-        n_fx = n_fx + 3 + 2
+        if self.aux:
+            n_fx = n_fx + 3 + 2
+
         X_p = np.zeros((n_days * self.n_stations, n_fx), dtype=np.float32)
         offset = 0
 
@@ -227,11 +231,16 @@ class LocalTransformer(BaseEstimator, TransformerMixin):
                 X_b = X_b[:, idx]
 
             if X_b.ndim == 6:
-                # over ensembles
-                X_b = np.mean(X_b, axis=2)
-
                 # FIXME over hours
                 if self.hour_mean:
+                    X_b = np.mean(X_b, axis=3)
+                elif self.hour_std:
+                    X_b = np.std(X_b, axis=3)
+
+                # over ensembles
+                if self.ens_std:
+                    X_b = np.std(X_b, axis=2)
+                else:
                     X_b = np.mean(X_b, axis=2)
 
                 offset_inc = 0
@@ -264,21 +273,79 @@ class LocalTransformer(BaseEstimator, TransformerMixin):
         ## stid_enc = self.stid_lb.transform(stid)
         ## blocks.append(stid_enc)
 
-        # lat, lon, elev
-        X_p[:, offset:(offset + 3)] = np.repeat(X.station_info, n_days, axis=0)
-        offset += 3
+        if self.aux:
+            # lat, lon, elev
+            X_p[:, offset:(offset + 3)] = np.repeat(X.station_info, n_days, axis=0)
+            offset += 3
 
-        # compute pos of station within grid cell (in degree lat lon)
-        lat_idx = np.repeat(lat_idx, n_days)
-        lon_idx = np.repeat(lon_idx, n_days)
-        # offset - 3 is station lat
-        X_p[:, offset] = (X.lat[lat_idx] -
-                          X_p[:, offset - 3])
-        # offset - 2 is station lon
-        X_p[:, offset + 1] = (X.lon[lon_idx] -
-                              X_p[:, offset - 2])
+            # compute pos of station within grid cell (in degree lat lon)
+            lat_idx = np.repeat(lat_idx, n_days)
+            lon_idx = np.repeat(lon_idx, n_days)
+            # offset - 3 is station lat
+            X_p[:, offset] = (X.lat[lat_idx] -
+                              X_p[:, offset - 3])
+            # offset - 2 is station lon
+            X_p[:, offset + 1] = (X.lon[lon_idx] -
+                                  X_p[:, offset - 2])
         print 'X_p.shape: ', X_p.shape
         return X_p
+
+
+class GlobalTransformer(BaseEstimator, TransformerMixin):
+    """Transformer that runs a convolution over the entire grid. """
+
+    def __init__(self, k=5, fxs=None, hour_mean=True):
+        self.k = k
+        self.hour_mean = hour_mean
+        self.fxs = fxs
+
+    def fit(self, X, y=None):
+        assert y is not None
+        n_stations = y.shape[1]
+        self.n_stations = n_stations
+        assert X.station_info.shape[0] == self.n_stations
+
+        return self
+
+    def transform(self, X, y=None):
+        Xs = []
+        for bid, b_name in enumerate(X.blocks):
+            X_b = X[b_name]
+
+            # select fx if fxs given
+            if self.fxs is not None and b_name in self.fxs:
+                fxs = self.fxs[b_name]
+                if fxs is not None:
+                    idx = [i for i, name in enumerate(X.fx_name[b_name])
+                           if name in fxs]
+                    X_b = X_b[:, idx]
+            else:
+                # skip the block
+                continue
+            print 'GT:', X_b.shape
+            # mean over ensembles
+            X_b = np.mean(X_b, axis=2)
+            # mean over hours
+            X_b = np.mean(X_b, axis=2)
+            k = self.k
+            kernel = np.ones((k, k)) / float(k ** 2.)
+            X_g = np.empty(X_b.shape[:2] +
+                           ((X_b.shape[2] - (k - 1)) // 2,
+                            (X_b.shape[3] - (k - 1)) // 2), dtype=np.float32)
+            for i in range(X_b.shape[0]):
+                for j in range(X_b.shape[1]):
+                    X_g[i, j, :, :] = signal.convolve2d(X_b[i, j], kernel,
+                                                        mode='valid')[::2, :-1:2]
+
+            X_g = X_g.reshape(X_g.shape[0], np.prod(X_g.shape[1:]))
+            print 'X_g:', X_g.shape
+            Xs.append(X_g)
+        res = np.hstack(Xs)
+        print res.shape
+        #res = np.tile(res, (self.n_stations, 1))
+        res = np.repeat(res, self.n_stations, axis=0)
+        print 'X_g: ', res.shape
+        return res
 
 
 class LocalGlobalTransformer(BaseEstimator, TransformerMixin):
@@ -286,35 +353,22 @@ class LocalGlobalTransformer(BaseEstimator, TransformerMixin):
     def fit(self, X, y=None):
         return self
 
-    def transform(self, X, y=None, dates=None):
+    def transform(self, X_sa, y=None, dates=None):
+        print '### in LocalGlobal.transofrm'
         # mean over ensembles
+        X = X_sa.nm
+        print X.shape
         X = np.mean(X, axis=2)
-
-        Z = X.copy()
+        #Z = X.copy()
 
         # mean over hours
         X = X.mean(axis=2)
 
-        Xs = [X, Z]
-
-        kernel_hor = np.array([[-1, 1]])
-        X_g = np.empty(X.shape[:2] + (X.shape[2], X.shape[3] - 1), dtype=np.float32)
-        for i in range(X.shape[0]):
-            for j in range(X.shape[1]):
-                X_g[i, j, :, :] = signal.convolve2d(X[i, j], kernel_hor,
-                                                    mode='valid')
-        #Xs.append(X_g)
-
-        kernel_ver = np.array([[-1], [1]])
-        X_g = np.empty(X.shape[:2] + (X.shape[2] - 1, X.shape[3]), dtype=np.float32)
-        for i in range(X.shape[0]):
-            for j in range(X.shape[1]):
-                X_g[i, j, :, :] = signal.convolve2d(X[i, j], kernel_ver,
-                                                    mode='valid')
-        #Xs.append(X_g)
+        Xs = [X]
 
         kernel_small = np.array([[0.25, 0.25], [0.25, 0.25]])
-        X_g = np.empty(X.shape[:2] + (X.shape[2] - 1, X.shape[3] - 1), dtype=np.float32)
+        X_g = np.empty(X.shape[:2] + (X.shape[2] - 1, X.shape[3] - 1),
+                       dtype=np.float32)
         for i in range(X.shape[0]):
             for j in range(X.shape[1]):
                 X_g[i, j, :, :] = signal.convolve2d(X[i, j], kernel_small,
@@ -324,7 +378,8 @@ class LocalGlobalTransformer(BaseEstimator, TransformerMixin):
         kernel_mid = np.array([[0.125, 0.125, 0.125],
                                [0.125, 0.0, 0.125],
                                [0.125, 0.125, 0.125]])
-        X_g = np.empty(X.shape[:2] + (X.shape[2] - 2, X.shape[3] - 2), dtype=np.float32)
+        X_g = np.empty(X.shape[:2] + (X.shape[2] - 2, X.shape[3] - 2),
+                       dtype=np.float32)
         for i in range(X.shape[0]):
             for j in range(X.shape[1]):
                 X_g[i, j, :, :] = signal.convolve2d(X[i, j], kernel_mid,
@@ -333,16 +388,9 @@ class LocalGlobalTransformer(BaseEstimator, TransformerMixin):
 
         Xs = [X_b.reshape(X_b.shape[0], np.prod(X_b.shape[1:])) for X_b in Xs]
         X = np.hstack(Xs)
+        X_sa.nm = X
 
-        out = [X]
-        if y is not None:
-            out.append(y)
-        if dates is not None:
-            out.append(dates)
-        if len(out) == 1:
-            return out[0]
-        else:
-            return out
+        return X_sa
 
 
 class BaselineTransformer(BaseEstimator, TransformerMixin):
@@ -367,34 +415,45 @@ class BaselineTransformer(BaseEstimator, TransformerMixin):
 
 class EnsembleExampleTransformer(BaseEstimator, TransformerMixin):
 
+    hour_mean = False
+
     def fit(self, X, y=None):
+        X = X.nm
+        n_ensemble = X.shape[2]
+        self.n_ensemble = n_ensemble
         return self
 
-    def transform(self, X, y=None, dates=None):
-        """Creates one row per ensemble member.
+    def transform(self, X, y=None):
+        """Creates one row per ensemble member. """
+        blocks = OrderedDict()
 
-        If y is given then copy each value n_ensemble times.
-        """
-        n_ensemble = X.shape[2]
-        # mean over hours
-        X = X.mean(axis=3)
+        for b_name in X.blocks.iterkeys():
+            X_b = X[b_name]
 
-        # swap features and ensembles
-        X = X.swapaxes(1, 2)
-        X = X.reshape(X.shape[0] * X.shape[1], np.prod(X.shape[2:]))
+            if X_b.ndim >= 3:
+                assert X_b.shape[2] == self.n_ensemble
 
-        out = [X]
-        if y is not None:
-            y = np.repeat(y, n_ensemble, axis=0)
-            out.append(y)
-        if dates is not None:
-            dates = np.repeat(dates, n_ensemble, axis=0)
-            out.append(dates)
+                if self.hour_mean:
+                    # mean over hours
+                    X_b = X_b.mean(axis=3)
 
-        if len(out) == 1:
-            return out[0]
-        else:
-            return out
+                X_b = X_b.swapaxes(1, 2)
+                X_b = X_b.reshape(X_b.shape[0] * X_b.shape[1],
+                                  np.prod(X_b.shape[2:]))
+            else:
+                X_b = np.repeat(X_b, self.n_ensemble, axis=0)
+
+            blocks[b_name] = X_b
+
+        station_info = X.station_info
+        X = StructuredArray(blocks)
+        X.station_info = station_info
+        return X
+
+    def transform_labels(self, y):
+        """Copies each value in y n_ensemble times."""
+        y = np.repeat(y, self.n_ensemble, axis=0)
+        return y
 
     def mean_predictions(self, pred):
         if pred.ndim == 1:
@@ -409,20 +468,20 @@ class EnsembledRegressor(BaseEstimator, TransformerMixin):
 
     def __init__(self, est, date='center', clip=False):
         self.est = est
-        self.trans = EnsembleExampleTransformer()
-        self.date = date
+        self.ens_tf = EnsembleExampleTransformer()
+        self.date_tf = DateTransformer(op='center')
+        self.val_tf = ValueTransformer()
         self.clip = clip
 
-    def fit(self, X, y, dates=None, **kw):
-        if dates is None:
-            X, y = self.trans.transform(X, y)
-        else:
-            X, y, dates = self.trans.transform(X, y, dates=dates)
-
-        if self.date:
-            self.date_extr = DateTransformer(op=self.date)
-            self.date_extr.fit(X, dates=dates)
-            X = self.date_extr.transform(X, dates=dates)
+    def fit(self, X, y, **kw):
+        self.date_tf.fit(X, y)
+        self.ens_tf.fit(X, y)
+        self.val_tf.fit(X, y)
+        print 'after fit'
+        X = self.date_tf.transform(X, y)
+        X = self.ens_tf.transform(X, y)
+        X = self.val_tf.transform(X, y)
+        y = self.ens_tf.transform_labels(y)
 
         print('fit est on X.shape: %s | y.shape: %s' % (
             str(X.shape), str(y.shape)))
@@ -434,20 +493,15 @@ class EnsembledRegressor(BaseEstimator, TransformerMixin):
             self.clip_low = y.min()
         return self
 
-    def predict(self, X, dates=None):
-        if dates is None:
-            X = self.trans.transform(X)
-        else:
-            X, dates = self.trans.transform(X, dates=dates)
-
-        if self.date:
-            X = self.date_extr.transform(X, dates=dates)
-
+    def predict(self, X):
+        X = self.date_tf.transform(X)
+        X = self.ens_tf.transform(X)
+        X = self.val_tf.transform(X)
         pred = self.est.predict(X)
         if pred.ndim == 1:
             pred = pred.reshape((pred.shape[0], 1))
         # predict is (n_ensemble * n_days) x n_stations
-        pred = self.trans.mean_predictions(pred)
+        pred = self.ens_tf.mean_predictions(pred)
         if self.clip:
             pred = np.clip(pred, self.clip_low, self.clip_high)
         return pred
@@ -455,14 +509,16 @@ class EnsembledRegressor(BaseEstimator, TransformerMixin):
 
 class LocalModel(BaseEstimator, RegressorMixin):
 
-    def __init__(self, est):
+    def __init__(self, est, clip=False):
         self.est = est
+        self.clip=clip
         steps = [
-            ('date', DateTransformer(op='center')),
+            ('date', DateTransformer(op='doy')),
                  ('ft', FunctionTransformer(block='nm', new_block='nmft',
                                             ops=(
-                                                #('tcolc_eatm', 'pow', 0.15),
-                                                #('apcp_sfc', 'pow', 0.15),
+                                                # the first two are good for Ridge
+                                                ('tcolc_eatm', 'pow', 0.15),
+                                                ('apcp_sfc', 'pow', 0.15),
                                                 ('uswrf_sfc', '/', 'dswrf_sfc'),
                                                 ('ulwrf_sfc', '/', 'dlwrf_sfc'),
                                                 ('ulwrf_sfc', '/', 'uswrf_sfc'),
@@ -473,9 +529,19 @@ class LocalModel(BaseEstimator, RegressorMixin):
         l1 = LocalTransformer(hour_mean=True, k=2)
         l2 = LocalTransformer(hour_mean=False, k=1, fxs={'nm': ['dswrf_sfc',
                                                                 'uswrf_sfc',
-                                                                'pwat_eatm']})
+                                                                'pwat_eatm']},
+                              aux=False)
+        l3 = LocalTransformer(hour_mean=True, ens_std=True, k=1, aux=False)
+        l4 = LocalTransformer(hour_std=True, ens_std=False, k=1, aux=False)
+        # g1 = GlobalTransformer(k=6, fxs={'nm': ['dswrf_sfc',
+        #                                         'uswrf_sfc',
+        #                                         'pwat_eatm']})
         self.fu = FeatureUnion([('hm_k2', l1),
-                                ('h_k1_3fx', l2)])
+                                #('h_k1_3fx', l2),
+                                ('es_k1', l3),
+                                ('hs_k1', l4),
+                                #('g_k5_3fx', g1),
+                                ])
 
     def fit(self, X, y, **kw):
         self.n_stations = y.shape[1]
@@ -485,7 +551,12 @@ class LocalModel(BaseEstimator, RegressorMixin):
         y = LocalTransformer.transform_labels(y)
         assert X.shape[0] == y.shape[0]
         print 'LocalModel: fit est on X: %s' % str(X.shape)
+        t0 = time()
         self.est.fit(X, y)
+        print('Est fitted in %.2fm' % ((time() - t0) / 60.))
+        if self.clip:
+            self.clip_high = y.max()
+            self.clip_low = y.min()
         return self
 
     def predict(self, X):
@@ -496,6 +567,8 @@ class LocalModel(BaseEstimator, RegressorMixin):
         print X.shape, pred.shape
         # reshape - first read days (per station)
         pred = pred.reshape((self.n_stations, n_days)).T
+        if self.clip:
+            pred = np.clip(pred, self.clip_low, self.clip_high)
         return pred
 
 
@@ -525,10 +598,13 @@ class Baseline(PipelineModel):
         self.est = est
         self.date = date
 
-        steps=[('bl_trans', BaselineTransformer())]
+        steps=[
+            ('bl_trans', BaselineTransformer()),
+            ]
         if self.date:
             steps.append(('date', DateTransformer(op=self.date)))
 
+        #steps.append(('loc_glo', LocalGlobalTransformer()))
         steps.append(('vals', ValueTransformer()))
         steps.append(('est', est))
 
@@ -588,7 +664,11 @@ class DBNRegressor(BaseEstimator, RegressorMixin):
         self.nesterov = nesterov
 
     def fit(self, X, y, X_pretrain=None):
-        n_outputs = y.shape[1]
+        if y.ndim == 2:
+            n_outputs = y.shape[1]
+        else:
+            y = y[:, np.newaxis]
+            n_outputs = 1
 
         params = dict(self.__dict__)
         from gdbn.activationFunctions import Linear
@@ -602,6 +682,7 @@ class DBNRegressor(BaseEstimator, RegressorMixin):
             units = n_units
         units = [X.shape[1]] + units + [n_outputs]
         self.dbn = DBN(units, **params)
+        print X.shape
         self.dbn.fit(X, y, X_pretrain=X_pretrain)
 
     def predict(self, X):

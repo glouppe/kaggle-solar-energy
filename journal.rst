@@ -256,3 +256,49 @@ FeatureUnion(n_jobs=1,
 MAE:  1934130.62
 RMSE: 2856188.81
 R2: 0.86
+
+
+7.9.2013
+^^^^^^^^
+
+HK_1:
+
+
+
+
+8.9.2013
+^^^^^^^^
+
+RidgeCV(alpha=[1e-5, 1e0], normalize=True)
+
+Baseline
+
+CV-5:   2261985.19 (+/- 70066.89)
+CV-10:  2255188.94 (+/- 115823.39)
+TT 0.7: 2183312.55
+TT 0.5: 2303701.03
+LB
+
+Local
+CV-5
+CV-10
+TT 0.7: 2084341.24
+TT 0.5: 2142705.12
+LB
+
+GradientBoostingRegressor(alpha=0.9, init=None, learn_rate=None,
+             learning_rate=0.1, loss='ls', max_depth=4, max_features=265,
+             min_samples_leaf=3, min_samples_split=2, n_estimators=500,
+             random_state=1, subsample=1.0, verbose=2)
+Local
+CV-5
+CV-10
+TT 0.7: 1944772.94
+TT 0.5: 2027302.29
+LB:     2102797.94
+
+seems like gbrt flattens pretty quickly - after 100 trees we already reached
+a plateu (2.05).
+Since training error is still decreasing I think it might not be a case for
+underfitting but rather overfitting - before tuning the learning rate lets look
+into min_samples_leaf and max_depth.
