@@ -13,6 +13,10 @@ from sklearn import metrics
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import LabelBinarizer
 from sklearn.pipeline import Pipeline, FeatureUnion
+from sklearn.cluster import MiniBatchKMeans, KMeans
+from sklearn.mixture import GMM
+from sklearn.random_projection import GaussianRandomProjection
+
 
 from nolearn.dbn import DBN
 
@@ -65,8 +69,10 @@ class FunctionTransformer(BaseEstimator, TransformerMixin):
     # @profile
     def transform(self, X, y=None, dates=None):
         block_name = self.block
-        block_fx_names = []
+        block_fx_name = []
         block_shape = X[self.block].shape
+        print('[FT] nr new features: %d' % len(self.ops))
+        print self.ops
         out = np.zeros((block_shape[0], len(self.ops)) +
                         block_shape[2:], dtype=np.float32)
         for op_idx, (left, op, right) in enumerate(self.ops):
@@ -88,16 +94,113 @@ class FunctionTransformer(BaseEstimator, TransformerMixin):
                         X[block_name][:, j])
 
             out[:, op_idx] = vals
-            block_fx_names.append(''.join(map(str, [left, op, right])))
+            block_fx_name.append(''.join(map(str, [left, op, right])))
 
         X[self.new_block] = out
-        X.fx_name[self.new_block] = block_fx_names
-        if hasattr(X, 'fx_names'):
-            X.fx_name[self.new_block] = block_fx_names
+        X.fx_name[self.new_block] = block_fx_name
+        if hasattr(X, 'fx_name'):
+            X.fx_name[self.new_block] = block_fx_name
         if y is not None:
             return X, y
         else:
             return X
+
+
+class EncoderTransformer(BaseEstimator, TransformerMixin):
+
+    def __init__(self, fx='dswrf_sfc', k=10, reshape=False,
+                 codebook='mb_kmeans', ens_mean=False, hour_mean=False):
+        self.fx = fx
+        self.k = k
+        self.reshape = reshape
+        self.codebook = codebook
+        self.ens_mean = ens_mean
+        self.hour_mean = hour_mean
+
+    def fit(self, X, y=None):
+        k = self.k
+        codebook = self.codebook
+        if codebook == 'kmeans':
+            cb = KMeans(k, n_init=3, init='k-means++')
+        elif codebook == 'gmm':
+            cb = GMM(n_components=k, n_iter=200, min_cov=1e-9)
+        elif codebook == 'mb_kmeans':
+            cb = MiniBatchKMeans(k, batch_size=1000)
+        elif codebook == 'random':
+            cb = GaussianRandomProjection(n_components=k)
+        self.cb_ = cb
+
+        print('_' * 80)
+        print('Encoding fx:%s' % self.fx)
+        self.fx_idx_ = X.fx_name['nm'].index(self.fx)
+        X_nm = X.nm[:, self.fx_idx_].astype(np.float64)
+
+        print('reshaping data')
+        if self.hour_mean:
+            X_nm = X_nm.mean(axis=2)
+            # X = (n_days x n_ens) x (n_lat x n_lon)
+            X_nm = X_nm.reshape((np.prod(X_nm.shape[:2]),
+                                 np.prod(X_nm.shape[2:])))
+        elif self.ens_mean:
+            X_nm = X_nm.mean(axis=1)
+            # X = (n_days x n_hour) x (n_lat x n_lon)
+            X_nm = X_nm.reshape((np.prod(X_nm.shape[:2]),
+                                 np.prod(X_nm.shape[2:])))
+        else:
+            # X = (n_days x n_ens x n_hour) x (n_lat x n_lon)
+            X_nm = X_nm.reshape((np.prod(X_nm.shape[:3]),
+                                 np.prod(X_nm.shape[3:])))
+        print('scaling data')
+        self.scaler_ = StandardScaler()
+        X_nm = self.scaler_.fit_transform(X_nm)
+        print('fitting codebook')
+        print
+        print cb
+        print 'on X.shape: %s' % str(X_nm.shape)
+        cb.fit(X_nm)
+        print 'fin.'
+        return self
+
+    def transform(self, X, y=None):
+        X_nm = X.nm[:, self.fx_idx_].astype(np.float64)
+
+        print('reshaping data')
+        if self.hour_mean:
+            X_nm = X_nm.mean(axis=2)
+            # X = (n_days x n_ens) x (n_lat x n_lon)
+            X_nm = X_nm.reshape((np.prod(X_nm.shape[:2]),
+                                 np.prod(X_nm.shape[2:])))
+        elif self.ens_mean:
+            X_nm = X_nm.mean(axis=1)
+            # X = (n_days x n_hour) x (n_lat x n_lon)
+            X_nm = X_nm.reshape((np.prod(X_nm.shape[:2]),
+                                 np.prod(X_nm.shape[2:])))
+        else:
+            # X = (n_days x n_ens x n_hour) x (n_lat x n_lon)
+            X_nm = X_nm.reshape((np.prod(X_nm.shape[:3]),
+                                 np.prod(X_nm.shape[3:])))
+
+        X_nm = self.scaler_.transform(X_nm)
+        try:
+            X_nm_tf = self.cb_.transform(X_nm)
+        except AttributeError:
+            X_nm_tf = self.cb_.predict_proba(X_nm)
+        print('transformed X%s to X%s' % (str(X_nm.shape), str(X_nm_tf.shape)))
+        if not self.reshape:
+            # shape back to n_days x n_ens x n_hour x n_lat x n_lon
+            X_nm_tf = X_nm_tf.reshape(X_nm.shape)
+        else:
+            # shape to n_days x (n_ens x n_hour x n_centroids)
+            X_nm_tf = X_nm_tf.reshape((X.nm.shape[0],
+                                       np.prod(X_nm_tf.shape) / X.nm.shape[0]))
+
+        print('setting block %s with shape %s' % ('nm_enc_%s' % self.fx,
+                                                  X_nm_tf.shape))
+        X['nm_enc_%s' % self.fx] = X_nm_tf
+        return X
+
+    def plot(self):
+        c = self.cb_.cluster_centers_
 
 
 class DateTransformer(BaseEstimator, TransformerMixin):
@@ -139,7 +242,7 @@ class DateTransformer(BaseEstimator, TransformerMixin):
         return X
 
 
-class FeatureDelTransformer(BaseEstimator, TransformerMixin):
+class DelBlockTransformer(BaseEstimator, TransformerMixin):
 
     def __init__(self, rm_lst=None):
         self.rm_lst = rm_lst
@@ -148,13 +251,9 @@ class FeatureDelTransformer(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X, y=None, **kw):
-        idx = [i for i, name in enumerate(X.fx_names['nm'])
-               if name not in self.rm_lst]
-        X['nm'] = X.nm[:, idx]
-        if y is None:
-            return X
-        else:
-            return X, y
+        for b_name in self.rm_lst:
+            del X.blocks[b_name]
+        return X
 
 
 class LocalTransformer(BaseEstimator, TransformerMixin):
@@ -196,6 +295,9 @@ class LocalTransformer(BaseEstimator, TransformerMixin):
 
         n_fx = 0
         for b_name, X_b in X.blocks.iteritems():
+            old_n_fx = n_fx
+            if self.fxs is not None and b_name not in self.fxs:
+                continue
             if X_b.ndim == 6:
                 if self.fxs is not None and b_name in self.fxs:
                     n_fxs = len(self.fxs[b_name])
@@ -207,10 +309,13 @@ class LocalTransformer(BaseEstimator, TransformerMixin):
                 shapes.extend([k * 2 + 1, k * 2 + 1])
                 print b_name, shapes
                 n_fx += np.prod(shapes)
-            elif X_b.ndim in (1, 2):
+            elif X_b.ndim == 1:
                 n_fx += 1
+            elif X_b.ndim == 2:
+                n_fx += X_b.shape[1]
             else:
                 raise ValueError('%s has wrong dim: %d' % (b_name, X_b.ndim))
+            print 'block: %s as %d n_fx' % (b_name, n_fx - old_n_fx)
 
         # num of features - based on blocks + station info (5 fx)
         if self.aux:
@@ -220,11 +325,13 @@ class LocalTransformer(BaseEstimator, TransformerMixin):
         offset = 0
 
         for bid, b_name in enumerate(X.blocks):
+            if self.fxs is not None and b_name not in self.fxs:
+                continue
             print 'localizing block: %s' % b_name
             X_b = X[b_name]
 
             # select fx if fxs given
-            if self.fxs is not None and b_name in self.fxs:
+            if self.fxs is not None and self.fxs.get(b_name, None):
                 fxs = self.fxs[b_name]
                 idx = [i for i, name in enumerate(X.fx_name[b_name])
                        if name in fxs]
@@ -262,10 +369,17 @@ class LocalTransformer(BaseEstimator, TransformerMixin):
 
                 offset += offset_inc
 
-            elif X_b.ndim in (1, 2):
+            elif X_b.ndim == 1 or (X_b.ndim == 2 and X_b.shape[1] == 1):
                 X_p[:, offset:offset + 1] = np.tile(X_b.ravel(),
                                                     self.n_stations)[:, np.newaxis]
                 offset += 1
+            elif X_b.ndim == 2:
+                # FIXME wrong stitching together stuff
+                print('block: %s will be repeated for each station' % b_name)
+                width = X_b.shape[1]
+                X_p[:, offset:offset + width] = np.tile(X_b, (self.n_stations, 1))
+                #IPython.embed()
+                offset += width
             else:
                 raise ValueError('%s has wrong dim: %d' % (b_name, X_b.ndim))
 
@@ -285,8 +399,9 @@ class LocalTransformer(BaseEstimator, TransformerMixin):
             X_p[:, offset] = (X.lat[lat_idx] -
                               X_p[:, offset - 3])
             # offset - 2 is station lon
-            X_p[:, offset + 1] = (X.lon[lon_idx] -
+            X_p[:, offset + 1] = ((X.lon[lon_idx] - 360.) -
                                   X_p[:, offset - 2])
+        #IPython.embed()
         print 'X_p.shape: ', X_p.shape
         return X_p
 
@@ -395,22 +510,25 @@ class LocalGlobalTransformer(BaseEstimator, TransformerMixin):
 
 class BaselineTransformer(BaseEstimator, TransformerMixin):
 
+    def __init__(self, b_name='nm'):
+        self.b_name = b_name
+
     def fit(self, X, y=None):
         return self
 
     def transform(self, X, y=None):
+        X_nm = X[self.b_name]
+        print('[baseline tf] old shape: %s' % str(X_nm.shape))
         # mean over ensembles
-        X_nm = np.mean(X.nm, axis=2)
+        X_nm = np.mean(X_nm, axis=2)
         # mean over hours
         X_nm = np.mean(X_nm, axis=2)
         # reshape
         X_nm = X_nm.reshape(X_nm.shape[0], np.prod(X_nm.shape[1:]))
 
-        X['nm'] = X_nm
-        if y is not None:
-            return X, y
-        else:
-            return X
+        X[self.b_name] = X_nm
+        print('[baseline tf] new shape: %s' % str(X_nm.shape))
+        return X
 
 
 class EnsembleExampleTransformer(BaseEstimator, TransformerMixin):
@@ -509,43 +627,71 @@ class EnsembledRegressor(BaseEstimator, TransformerMixin):
 
 class LocalModel(BaseEstimator, RegressorMixin):
 
+    use_enc = True
+
     def __init__(self, est, clip=False):
         self.est = est
         self.clip=clip
         steps = [
             ('date', DateTransformer(op='doy')),
-                 ('ft', FunctionTransformer(block='nm', new_block='nmft',
-                                            ops=(
-                                                # the first two are good for Ridge
-                                                ('tcolc_eatm', 'pow', 0.15),
-                                                ('apcp_sfc', 'pow', 0.15),
-                                                ('uswrf_sfc', '/', 'dswrf_sfc'),
-                                                ('ulwrf_sfc', '/', 'dlwrf_sfc'),
-                                                ('ulwrf_sfc', '/', 'uswrf_sfc'),
-                                                ('dlwrf_sfc', '/', 'dswrf_sfc'),
+            ('ft', FunctionTransformer(block='nm', new_block='nmft',
+                                       ops=(
+                                           # the first two are good for Ridge
+                                           ('dswrf_sfc', 'pow', 1),
+                                           #('tcolc_eatm', 'pow', 0.15),
+                                           #('apcp_sfc', 'pow', 0.15),
+                                           #('uswrf_sfc', '/', 'dswrf_sfc'),
+                                           #('ulwrf_sfc', '/', 'dlwrf_sfc'),
+                                           #('ulwrf_sfc', '/', 'uswrf_sfc'),
+                                           #('dlwrf_sfc', '/', 'dswrf_sfc'),
                                                 ))),
+
                  ]
         self.pipeline = Pipeline(steps)
-        l1 = LocalTransformer(hour_mean=True, k=2)
-        l2 = LocalTransformer(hour_mean=False, k=1, fxs={'nm': ['dswrf_sfc',
-                                                                'uswrf_sfc',
-                                                                'pwat_eatm']},
-                              aux=False)
-        l3 = LocalTransformer(hour_mean=True, ens_std=True, k=1, aux=False)
-        l4 = LocalTransformer(hour_std=True, ens_std=False, k=1, aux=False)
+        if self.use_enc:
+            ## self.enc = EncoderTransformer(fx='dswrf_sfc', k=50,
+            ##                               reshape=True,
+            ##                               codebook='random',
+            ##                               ens_mean=True)
+            self.enc = BaselineTransformer(b_name='nmft')
+        l1 = LocalTransformer(hour_mean=True, k=1)
+        l2 = LocalTransformer(hour_mean=True, k=2, fxs={
+            'nm': ['dswrf_sfc'],
+            #'nmft': None,
+            'date': None,
+            #'nm_enc_dswrf_sfc': None,
+            },
+            aux=True)
+
+        #l3 = LocalTransformer(hour_mean=True, ens_std=True, k=1, aux=False)
+        #l4 = LocalTransformer(hour_std=True, ens_std=False, k=1, aux=False)
         # g1 = GlobalTransformer(k=6, fxs={'nm': ['dswrf_sfc',
         #                                         'uswrf_sfc',
         #                                         'pwat_eatm']})
-        self.fu = FeatureUnion([('hm_k2', l1),
-                                #('h_k1_3fx', l2),
-                                ('es_k1', l3),
-                                ('hs_k1', l4),
+        self.fu = FeatureUnion([#('hm_k1', l1),
+                                ('h_k2_dswrf_sfc', l2),
+                                #('es_k1', l3),
+                                #('hs_k1', l4),
                                 #('g_k5_3fx', g1),
                                 ])
+
+    def transform(self, X, y):
+        self.n_stations = y.shape[1]
+        ## FIXME hack
+        X = self.pipeline.transform(X)
+        if self.use_enc:
+            X = self.enc.transform(X)
+        self.fu.fit(X, y)
+        X = self.fu.transform(X)
+        y = LocalTransformer.transform_labels(y)
+        return X, y
 
     def fit(self, X, y, **kw):
         self.n_stations = y.shape[1]
         X = self.pipeline.transform(X)
+        if self.use_enc:
+            self.enc.fit(X, y)
+            X = self.enc.transform(X)
         self.fu.fit(X, y)
         X = self.fu.transform(X)
         y = LocalTransformer.transform_labels(y)
@@ -562,6 +708,8 @@ class LocalModel(BaseEstimator, RegressorMixin):
     def predict(self, X):
         n_days = X.shape[0]
         X = self.pipeline.transform(X)
+        if self.use_enc:
+            X = self.enc.transform(X)
         X = self.fu.transform(X)
         pred = self.est.predict(X)
         print X.shape, pred.shape
@@ -597,14 +745,38 @@ class Baseline(PipelineModel):
     def __init__(self, est, date='center'):
         self.est = est
         self.date = date
-
         steps=[
-            ('bl_trans', BaselineTransformer()),
+            # ('enc_dswrf_sfc', EncoderTransformer(fx='dswrf_sfc', k=30,
+            #                                      reshape=True,
+            #                                      codebook='kmeans',
+            #                                      ens_mean=True)),
+            # ('enc_dlwrf_sfc', EncoderTransformer(fx='dlwrf_sfc', k=10,
+            #                                      reshape=True,
+            #                                      codebook='kmeans',
+            #                                      ens_mean=True)),
+            # ('enc_uswrf_sfc', EncoderTransformer(fx='uswrf_sfc', k=20,
+            #                                      reshape=True,
+            #                                      codebook='kmeans',
+            #                                      ens_mean=True)),
+            ## ('enc_pwat_eatm', EncoderTransformer(fx='pwat_eatm', k=10,
+            ##                                      reshape=True,
+            ##                                      codebook='mb_kmeans',
+            ##                                      ens_mean=True)),
+            ('ft', FunctionTransformer(block='nm', new_block='nmft',
+                                            ops=(
+                                                #('uswrf_sfc', '/', 'dswrf_sfc'),
+                                                #('ulwrf_sfc', '/', 'dlwrf_sfc'),
+                                                #('ulwrf_sfc', '/', 'uswrf_sfc'),
+                                                #('dlwrf_sfc', '/', 'dswrf_sfc'),
+                                                ('dswrf_sfc', 'pow', 1.0),
+                                                ))),
+            ('bl_trans', BaselineTransformer(b_name='nmft')),
             ]
         if self.date:
             steps.append(('date', DateTransformer(op=self.date)))
 
         #steps.append(('loc_glo', LocalGlobalTransformer()))
+        steps.append(('del', DelBlockTransformer(rm_lst=['nm'])))
         steps.append(('vals', ValueTransformer()))
         steps.append(('est', est))
 

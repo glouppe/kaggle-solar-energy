@@ -52,10 +52,10 @@ def err_analysis(y_true, y_pred, station_info=None, date=None):
 
     # plot stations on lon-lat grid and colorcode MAE to
     # see spatial-mae correlation
-    ## station_mae.name = 'mae'
-    ## station_info = station_info.join(station_mae, on='stid')
-    ## plt.figure()
-    ## plt.scatter(station_info.elon, station_info.nlat,
-    ##             c=station_info.mae / station_info.mae.max())
-    ## plt.colorbar()
+    station_mae.name = 'mae'
+    station_info = station_info.join(station_mae, on='stid')
+    plt.figure()
+    plt.scatter(station_info.elon, station_info.nlat,
+                c=station_info.mae / station_info.mae.max())
+    plt.colorbar()
     plt.show()

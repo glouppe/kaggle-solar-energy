@@ -32,6 +32,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.pipeline import Pipeline
+from sklearn.neighbors import KNeighborsRegressor
 from sklearn import cross_validation
 from sklearn import metrics
 from sklearn import pls
@@ -122,28 +123,25 @@ def train_test(args):
     X_train, y_train = X[:offset], y[:offset]
     X_test, y_test = X[offset:], y[offset:]
 
-    est = RidgeCV(alphas=10. ** np.arange(-7, 1, 1), normalize=True)
+    #est = RidgeCV(alphas=10. ** np.arange(-7, 1, 1), normalize=True)
     #est = Ridge(alpha=1e-5, normalize=True)
     # est = RandomForestRegressor(n_estimators=100, verbose=3,
     #                             max_features=0.3, min_samples_leaf=7,
     #                             n_jobs=2, bootstrap=False,
     #                             random_state=1)
-    ## est = GradientBoostingRegressor(n_estimators=400, verbose=2, max_depth=4,
-    ##                                 min_samples_leaf=5, learning_rate=0.1,
-    ##                                 max_features=250,
-    ##                                 random_state=1,
-    ##                                 loss='ls')
+    est = GradientBoostingRegressor(n_estimators=500, verbose=2, max_depth=3,
+                                    min_samples_leaf=5, learning_rate=0.1,
+                                    #max_features=250,
+                                    random_state=1,
+                                    loss='ls')
+    ## est = Pipeline([('std', StandardScaler()),
+    ##                 ('est', KNeighborsRegressor(n_neighbors=5,
+    ##                                             weights='distance',
+    ##                                             algorithm='auto', ))
+    ##                 ])
 
     model_cls = MODELS[args['<model>']]
     model = model_cls(est=est)
-
-    ## steps = [('baseline', BaselineTransformer()),
-    ##          ('date', DateTransformer(op='center')),
-    ##          ('ft', FunctionTransformer(block='nm', new_block='nmft')),
-    ##          ('val', ValueTransformer()),
-    ##          ('est', est)
-    ##          ]
-    ## model = PipelineModel(Pipeline(steps))
 
     print('_' * 80)
     print('Train-test')
@@ -152,7 +150,7 @@ def train_test(args):
     print
     print
 
-    scaler = StandardScaler()
+    scaler = StandardScaler(with_std=False)
     if args['--scaley']:
         y_train = scaler.fit_transform(y_train.copy())
 
@@ -180,7 +178,6 @@ def submit(args):
     y_train = data['y_train']
 
     X_test = data['X_test']
-
 
     ## est = RidgeCV(alphas=10. ** np.arange(-7, -1, 1), normalize=True)
     ## est = Ridge(alpha=1e-5, normalize=True)

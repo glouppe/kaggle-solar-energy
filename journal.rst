@@ -302,3 +302,144 @@ a plateu (2.05).
 Since training error is still decreasing I think it might not be a case for
 underfitting but rather overfitting - before tuning the learning rate lets look
 into min_samples_leaf and max_depth.
+
+12.9.2013
+^^^^^^^^^
+
+Ran learning curve experiments. Ridge has lower test error than training,
+test error slowly declines with increasing train set size - hardly noticable.
+GBRT train error lower than test error (1.73 vs 2.08)
+
+
+Ideas:
+
+  * Cluster global weather patterns (mixtures of gaussians or k-means)
+    - Use as codebook to encode today's weather
+  * Use local interpolation
+    - use std. linear interpolation
+    - look into Kringing literature
+  * Feature selection
+    - rank each of the 15 features
+    - rank positions on local grid
+      - create heatmaps from fx importance
+
+13.9.2013
+^^^^^^^^^
+GradientBoostingRegressor(alpha=0.9, init=None, learn_rate=None,
+             learning_rate=0.2, loss='ls', max_depth=4, max_features=None,
+             min_samples_leaf=5, min_samples_split=2, n_estimators=100,
+             random_state=1, subsample=1.0, verbose=2)
+MAE:  2079254.80
+RMSE: 3086559.49
+R2: 0.84
+
+
+GradientBoostingRegressor(alpha=0.9, init=None, learn_rate=None,
+             learning_rate=0.2, loss='ls', max_depth=5, max_features=None,
+             min_samples_leaf=5, min_samples_split=2, n_estimators=100,
+             random_state=1, subsample=1.0, verbose=2)
+MAE:  2075089.89
+RMSE: 3082218.80
+R2: 0.84
+
+
+GradientBoostingRegressor(alpha=0.9, init=None, learn_rate=None,
+             learning_rate=0.2, loss='lad', max_depth=4, max_features=None,
+             min_samples_leaf=5, min_samples_split=2, n_estimators=100,
+             random_state=1, subsample=1.0, verbose=2)
+
+MAE:  2085545.84
+RMSE: 3200952.50
+R2: 0.83
+
+GradientBoostingRegressor(alpha=0.9, init=None, learn_rate=None,
+             learning_rate=0.1, loss='ls', max_depth=2, max_features=None,
+             min_samples_leaf=5, min_samples_split=2, n_estimators=100,
+             random_state=1, subsample=1.0, verbose=2)
+
+MAE:  2140826.23
+RMSE: 3161672.07
+R2: 0.84
+
+
+
+MAE:  2254349.14
+RMSE: 3182497.08
+R2: 0.83
+
+
+
+initial (k=10, 100 mb size)
+MAE:  2689069.89
+RMSE: 3742975.79
+R2: 0.77
+
+initial (k=20, 1000 mb size)
+transform X to shape (2557, 1101)
+MAE:  2475579.74
+RMSE: 3497225.51
+R2: 0.80
+
+three top fx
+MAE:  2439879.83
+RMSE: 3429030.79
+R2: 0.80
+
+
+transform X to shape (2557, 2461)
+MAE:  2242651.84
+RMSE: 3169642.89
+R2: 0.83
+
+
+GBRT + encoder + local
+Pipeline(steps=[('date', DateTransformer(op='doy')), ('ft', FunctionTransformer(block='nm', new_block='nmft',
+          ops=(('ulwrf_sfc', '/', 'dlwrf_sfc'),)))])
+EncoderTransformer(codebook='kmeans', ens_mean=True, fx='dswrf_sfc',
+          hour_mean=False, k=20, reshape=True)
+FeatureUnion(n_jobs=1,
+       transformer_list=[('hm_k1', LocalTransformer(aux=True, ens_std=False, fxs=None, hour_mean=True,
+         hour_std=False, k=1)), ('h_k2_dswrf_sfc', LocalTransformer(aux=False, ens_std=False, fxs={'nm': ['dswrf_sfc']},
+         hour_mean=False, hour_std=False, k=2))],
+       transformer_weights=None)
+(250586, 375) (250586,)
+MAE:  2049997.27
+RMSE: 3049374.81
+R2: 0.85
+
+
+GBRT
+LocalModel(clip=False,
+      est=GradientBoostingRegressor(alpha=0.9, init=None, learn_rate=None,
+             learning_rate=0.1, loss='ls', max_depth=4, max_features=250,
+             min_samples_leaf=5, min_samples_split=2, n_estimators=500,
+             random_state=1, subsample=1.0, verbose=2))
+Pipeline(steps=[('date', DateTransformer(op='doy')), ('ft', FunctionTransformer(block='nm', new_block='nmft',
+          ops=(('ulwrf_sfc', '/', 'dlwrf_sfc'),)))])
+FeatureUnion(n_jobs=1,
+       transformer_list=[('hm_k1', LocalTransformer(aux=True, ens_std=False, fxs=None, hour_mean=True,
+         hour_std=False, k=1)), ('h_k2_dswrf_sfc', LocalTransformer(aux=False, ens_std=False, fxs={'nm': ['dswrf_sfc']},
+         hour_mean=False, hour_std=False, k=2))],
+       transformer_weights=None)
+(250586, 275) (250586,)
+MAE:  2039388.87
+RMSE: 3041438.02
+R2: 0.85
+
+
+GBRT w/ only LocalTransformer(aux=False, ens_std=False, fxs={'nm': ['dswrf_sfc']},
+         hour_mean=True, hour_std=False, k=2))]
+MAE:  2297962.99
+RMSE: 3345037.83
+R2: 0.81
+
+
+GBRT
+
+date + station pos
+(250586, 6) (250586,)
+MAE:  4542342.97
+RMSE: 5659077.89
+R2: 0.47
+
+date + station pos + local dswrf_sfc
