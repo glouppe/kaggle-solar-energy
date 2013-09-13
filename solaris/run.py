@@ -43,7 +43,6 @@ from .models import DateTransformer
 from .models import BaselineTransformer
 from .models import PipelineModel
 from .models import ValueTransformer
-from .models import DBNRegressor
 from .models import IndividualEstimator
 from .err_analysis import err_analysis
 
@@ -130,17 +129,11 @@ def train_test(args):
     #                             max_features=0.3, min_samples_leaf=7,
     #                             n_jobs=2, bootstrap=False,
     #                             random_state=1)
-    est = GradientBoostingRegressor(n_estimators=1000, verbose=2, max_depth=3,
-                                    min_samples_leaf=5, learning_rate=0.1,
-                                    max_features=250,
-                                    random_state=1,
-                                    loss='ls')
-    # est = IndividualEstimator(est)
-    ## est = Pipeline([('std', StandardScaler()),
-    ##                 ('est', KNeighborsRegressor(n_neighbors=5,
-    ##                                             weights='distance',
-    ##                                             algorithm='auto', ))
-    ##                 ])
+    ## est = GradientBoostingRegressor(n_estimators=1000, verbose=2, max_depth=3,
+    ##                                 min_samples_leaf=5, learning_rate=0.1,
+    ##                                 max_features=250,
+    ##                                 random_state=1,
+    ##                                 loss='ls')
 
     model_cls = MODELS[args['<model>']]
     model = model_cls(est=est)
@@ -191,7 +184,6 @@ def submit(args):
                                     max_features=265,
                                     random_state=1,
                                     loss='ls')
-
 
     model_cls = MODELS[args['<model>']]
     model = model_cls(est=est)

@@ -639,13 +639,12 @@ class LocalModel(BaseEstimator, RegressorMixin):
         self.est = est
         self.clip=clip
         steps = [
-            ('date', DateTransformer(op='center')),
+            ('date', DateTransformer(op='doy')),  ## FIXME center for Ridge
             ('ft', FunctionTransformer(block='nm', new_block='nmft',
                                        ops=(
                                            # the first two are good for Ridge
-                                           #('dswrf_sfc', 'pow', 1),
-                                           #('tcolc_eatm', 'pow', 0.15),
-                                           #('apcp_sfc', 'pow', 0.15),
+                                           ('tcolc_eatm', 'pow', 0.15),
+                                           ('apcp_sfc', 'pow', 0.15),
                                            ('uswrf_sfc', '/', 'dswrf_sfc'),
                                            ('ulwrf_sfc', '/', 'dlwrf_sfc'),
                                            ('ulwrf_sfc', '/', 'uswrf_sfc'),
@@ -666,7 +665,7 @@ class LocalModel(BaseEstimator, RegressorMixin):
                    'tcolc_eatm', 'pwat_eatm'],
             'nmft': ['uswrf_sfc/dswrf_sfc',
                      'ulwrf_sfc/dlwrf_sfc',
-                     #'apcp_sfcpow0.15', 'tcolc_eatmpow0.15',
+                     'apcp_sfcpow0.15', 'tcolc_eatmpow0.15',
                      ],
             'date': None,
             #'nm_enc_dswrf_sfc': None,
@@ -676,7 +675,7 @@ class LocalModel(BaseEstimator, RegressorMixin):
             'nm': ['dswrf_sfc', 'uswrf_sfc', 'ulwrf_sfc', 'apcp_sfc',
                    'tcolc_eatm', 'pwat_eatm'],
             'nmft': ['uswrf_sfc/dswrf_sfc', 'ulwrf_sfc/dlwrf_sfc',
-                     #'apcp_sfcpow0.15', 'tcolc_eatmpow0.15',
+                     'apcp_sfcpow0.15', 'tcolc_eatmpow0.15',
                      ],
             },
             aux=False, )
@@ -755,6 +754,9 @@ class PipelineModel(BaseEstimator, RegressorMixin):
             pred = pred.reshape((pred.shape[0], 1))
         return pred
 
+    def transform(self, X, y):
+        return self.pipeline.transform(X), y
+
 
 class IndividualEstimator(BaseEstimator, RegressorMixin):
 
@@ -782,14 +784,14 @@ class IndividualEstimator(BaseEstimator, RegressorMixin):
 
 class Baseline(PipelineModel):
 
-    def __init__(self, est, date='center'):
+    def __init__(self, est=None, date='center'):
         self.est = est
         self.date = date
         steps=[
-            ('enc_dswrf_sfc', EncoderTransformer(fx='dswrf_sfc', k=50,
-                                                 reshape=True,
-                                                 codebook='kmeans',
-                                                 ens_mean=True)),
+            # ('enc_dswrf_sfc', EncoderTransformer(fx='dswrf_sfc', k=50,
+            #                                      reshape=True,
+            #                                      codebook='kmeans',
+            #                                      ens_mean=True)),
             ('ft', FunctionTransformer(block='nm', new_block='nmft',
                                             ops=(
                                                 ('uswrf_sfc', '/', 'dswrf_sfc'),
@@ -807,7 +809,8 @@ class Baseline(PipelineModel):
         #steps.append(('loc_glo', LocalGlobalTransformer()))
         #steps.append(('del', DelBlockTransformer(rm_lst=['nm'])))
         steps.append(('vals', ValueTransformer()))
-        steps.append(('est', est))
+        if self.est is not None:
+            steps.append(('est', est))
 
         self.pipeline = Pipeline(steps)
 

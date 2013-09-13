@@ -460,3 +460,27 @@ X_p.shape:  (250586, 150)
 MAE:  2512085.61
 RMSE: 3568142.75
 R2: 0.79
+
+
+Neural Networks
+---------------
+
+ * Training data size:
+
+   - global input and single output:
+
+     (n_days * n_ensemble) x (n_fx * n_hours * n_lat * n_lon)
+
+     (2500 * 11) x (15 * 5 * 9 * 16)
+
+      27500 x 10800  <-- too many parameters
+
+
+-------------
+
+GBRT (scaled y)
+
+MAE:  0.254637
+RMSE: 0.380834
+R2: 0.845289
+
