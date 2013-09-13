@@ -44,6 +44,7 @@ from .models import BaselineTransformer
 from .models import PipelineModel
 from .models import ValueTransformer
 from .models import DBNRegressor
+from .models import IndividualEstimator
 from .err_analysis import err_analysis
 
 
@@ -115,8 +116,8 @@ def train_test(args):
     y = data['y_train']
 
     # just first 50 stations (otherwise too much)
-    #y = y[:, :25]
-    #X.station_info = X.station_info[:25]
+    ## y = y[:, :25]
+    ## X.station_info = X.station_info[:25]
 
     # no shuffle - past-future split
     offset = X.shape[0] * 0.5
@@ -129,11 +130,12 @@ def train_test(args):
     #                             max_features=0.3, min_samples_leaf=7,
     #                             n_jobs=2, bootstrap=False,
     #                             random_state=1)
-    est = GradientBoostingRegressor(n_estimators=500, verbose=2, max_depth=3,
+    est = GradientBoostingRegressor(n_estimators=1000, verbose=2, max_depth=3,
                                     min_samples_leaf=5, learning_rate=0.1,
-                                    #max_features=250,
+                                    max_features=250,
                                     random_state=1,
                                     loss='ls')
+    # est = IndividualEstimator(est)
     ## est = Pipeline([('std', StandardScaler()),
     ##                 ('est', KNeighborsRegressor(n_neighbors=5,
     ##                                             weights='distance',

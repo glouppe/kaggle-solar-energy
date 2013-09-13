@@ -9,6 +9,7 @@ from scipy import signal
 from sklearn.base import BaseEstimator
 from sklearn.base import RegressorMixin
 from sklearn.base import TransformerMixin
+from sklearn.base import clone
 from sklearn import metrics
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import LabelBinarizer
@@ -259,13 +260,14 @@ class DelBlockTransformer(BaseEstimator, TransformerMixin):
 class LocalTransformer(BaseEstimator, TransformerMixin):
 
     def __init__(self, k=2, fxs=None, hour_mean=True, aux=True, ens_std=False,
-                 hour_std=False):
+                 hour_std=False, stid_enc=False):
         self.k = k
         self.hour_mean = hour_mean
         self.fxs = fxs
         self.aux = aux
         self.ens_std = ens_std
         self.hour_std = hour_std
+        self.stid_enc = stid_enc
 
     def fit(self, X, y=None):
         assert y is not None
@@ -282,7 +284,6 @@ class LocalTransformer(BaseEstimator, TransformerMixin):
     def transform_labels(cls, y):
         y = y.ravel(1)
         return y
-
 
     # @profile
     def transform(self, X, y=None):
@@ -316,6 +317,9 @@ class LocalTransformer(BaseEstimator, TransformerMixin):
             else:
                 raise ValueError('%s has wrong dim: %d' % (b_name, X_b.ndim))
             print 'block: %s as %d n_fx' % (b_name, n_fx - old_n_fx)
+
+        if self.stid_enc:
+            n_fx += len(self.stid_lb.classes_)
 
         # num of features - based on blocks + station info (5 fx)
         if self.aux:
@@ -383,9 +387,11 @@ class LocalTransformer(BaseEstimator, TransformerMixin):
             else:
                 raise ValueError('%s has wrong dim: %d' % (b_name, X_b.ndim))
 
-        ## stid = np.repeat(self.stid_lb.classes_, n_days)
-        ## stid_enc = self.stid_lb.transform(stid)
-        ## blocks.append(stid_enc)
+        if self.stid_enc:
+            stid = np.repeat(self.stid_lb.classes_, n_days)
+            stid_enc = self.stid_lb.transform(stid)
+            X_p[:, offset:(offset + stid_enc.shape[1])] = stid_enc
+            offset += stid_enc.shape[1]
 
         if self.aux:
             # lat, lon, elev
@@ -627,50 +633,60 @@ class EnsembledRegressor(BaseEstimator, TransformerMixin):
 
 class LocalModel(BaseEstimator, RegressorMixin):
 
-    use_enc = True
+    use_enc = False
 
     def __init__(self, est, clip=False):
         self.est = est
         self.clip=clip
         steps = [
-            ('date', DateTransformer(op='doy')),
+            ('date', DateTransformer(op='center')),
             ('ft', FunctionTransformer(block='nm', new_block='nmft',
                                        ops=(
                                            # the first two are good for Ridge
-                                           ('dswrf_sfc', 'pow', 1),
+                                           #('dswrf_sfc', 'pow', 1),
                                            #('tcolc_eatm', 'pow', 0.15),
                                            #('apcp_sfc', 'pow', 0.15),
-                                           #('uswrf_sfc', '/', 'dswrf_sfc'),
-                                           #('ulwrf_sfc', '/', 'dlwrf_sfc'),
-                                           #('ulwrf_sfc', '/', 'uswrf_sfc'),
-                                           #('dlwrf_sfc', '/', 'dswrf_sfc'),
+                                           ('uswrf_sfc', '/', 'dswrf_sfc'),
+                                           ('ulwrf_sfc', '/', 'dlwrf_sfc'),
+                                           ('ulwrf_sfc', '/', 'uswrf_sfc'),
+                                           ('dlwrf_sfc', '/', 'dswrf_sfc'),
                                                 ))),
 
                  ]
         self.pipeline = Pipeline(steps)
         if self.use_enc:
-            ## self.enc = EncoderTransformer(fx='dswrf_sfc', k=50,
-            ##                               reshape=True,
-            ##                               codebook='random',
-            ##                               ens_mean=True)
-            self.enc = BaselineTransformer(b_name='nmft')
-        l1 = LocalTransformer(hour_mean=True, k=1)
-        l2 = LocalTransformer(hour_mean=True, k=2, fxs={
-            'nm': ['dswrf_sfc'],
-            #'nmft': None,
+            self.enc = EncoderTransformer(fx='dswrf_sfc', k=50,
+                                          reshape=True,
+                                          codebook='kmeans',
+                                          ens_mean=True)
+            #self.enc = BaselineTransformer(b_name='nmft')
+        #l1 = LocalTransformer(hour_mean=True, k=1)
+        l2 = LocalTransformer(hour_mean=False, k=1, fxs={
+            'nm': ['dswrf_sfc', 'uswrf_sfc', 'ulwrf_sfc', 'apcp_sfc',
+                   'tcolc_eatm', 'pwat_eatm'],
+            'nmft': ['uswrf_sfc/dswrf_sfc',
+                     'ulwrf_sfc/dlwrf_sfc',
+                     #'apcp_sfcpow0.15', 'tcolc_eatmpow0.15',
+                     ],
             'date': None,
             #'nm_enc_dswrf_sfc': None,
             },
             aux=True)
-
-        #l3 = LocalTransformer(hour_mean=True, ens_std=True, k=1, aux=False)
+        l3= LocalTransformer(hour_mean=True, k=2, fxs={
+            'nm': ['dswrf_sfc', 'uswrf_sfc', 'ulwrf_sfc', 'apcp_sfc',
+                   'tcolc_eatm', 'pwat_eatm'],
+            'nmft': ['uswrf_sfc/dswrf_sfc', 'ulwrf_sfc/dlwrf_sfc',
+                     #'apcp_sfcpow0.15', 'tcolc_eatmpow0.15',
+                     ],
+            },
+            aux=False, )
         #l4 = LocalTransformer(hour_std=True, ens_std=False, k=1, aux=False)
         # g1 = GlobalTransformer(k=6, fxs={'nm': ['dswrf_sfc',
         #                                         'uswrf_sfc',
         #                                         'pwat_eatm']})
         self.fu = FeatureUnion([#('hm_k1', l1),
                                 ('h_k2_dswrf_sfc', l2),
-                                #('es_k1', l3),
+                                ('es_k1', l3),
                                 #('hs_k1', l4),
                                 #('g_k5_3fx', g1),
                                 ])
@@ -740,43 +756,56 @@ class PipelineModel(BaseEstimator, RegressorMixin):
         return pred
 
 
+class IndividualEstimator(BaseEstimator, RegressorMixin):
+
+    def __init__(self, base_est):
+        self.base_est = base_est
+
+    def fit(self, X, y):
+        self.n_outputs_ = y.shape[1]
+        self.estimators_ = []
+        t0 = time()
+        for i in range(self.n_outputs_):
+            print 'fitting estimator %d' % i
+            est = clone(self.base_est)
+            est.fit(X, y[:, i])
+            self.estimators_.append(est)
+        print('fitted %d estimators in %ds' % (i, time() - t0))
+        return self
+
+    def predict(self, X):
+        pred = np.zeros((X.shape[0], self.n_outputs_), dtype=np.float64)
+        for i in range(self.n_outputs_):
+            pred[:, i] = self.estimators_[i].predict(X)
+        return pred
+
+
 class Baseline(PipelineModel):
 
     def __init__(self, est, date='center'):
         self.est = est
         self.date = date
         steps=[
-            # ('enc_dswrf_sfc', EncoderTransformer(fx='dswrf_sfc', k=30,
-            #                                      reshape=True,
-            #                                      codebook='kmeans',
-            #                                      ens_mean=True)),
-            # ('enc_dlwrf_sfc', EncoderTransformer(fx='dlwrf_sfc', k=10,
-            #                                      reshape=True,
-            #                                      codebook='kmeans',
-            #                                      ens_mean=True)),
-            # ('enc_uswrf_sfc', EncoderTransformer(fx='uswrf_sfc', k=20,
-            #                                      reshape=True,
-            #                                      codebook='kmeans',
-            #                                      ens_mean=True)),
-            ## ('enc_pwat_eatm', EncoderTransformer(fx='pwat_eatm', k=10,
-            ##                                      reshape=True,
-            ##                                      codebook='mb_kmeans',
-            ##                                      ens_mean=True)),
+            ('enc_dswrf_sfc', EncoderTransformer(fx='dswrf_sfc', k=50,
+                                                 reshape=True,
+                                                 codebook='kmeans',
+                                                 ens_mean=True)),
             ('ft', FunctionTransformer(block='nm', new_block='nmft',
                                             ops=(
-                                                #('uswrf_sfc', '/', 'dswrf_sfc'),
-                                                #('ulwrf_sfc', '/', 'dlwrf_sfc'),
-                                                #('ulwrf_sfc', '/', 'uswrf_sfc'),
-                                                #('dlwrf_sfc', '/', 'dswrf_sfc'),
-                                                ('dswrf_sfc', 'pow', 1.0),
+                                                ('uswrf_sfc', '/', 'dswrf_sfc'),
+                                                ('ulwrf_sfc', '/', 'dlwrf_sfc'),
+                                                ('ulwrf_sfc', '/', 'uswrf_sfc'),
+                                                ('dlwrf_sfc', '/', 'dswrf_sfc'),
+                                                #('dswrf_sfc', 'pow', 1.0),
                                                 ))),
-            ('bl_trans', BaselineTransformer(b_name='nmft')),
+            ('bl_trans', BaselineTransformer(b_name='nm')),
+            ('bl_trans2', BaselineTransformer(b_name='nmft')),
             ]
         if self.date:
             steps.append(('date', DateTransformer(op=self.date)))
 
         #steps.append(('loc_glo', LocalGlobalTransformer()))
-        steps.append(('del', DelBlockTransformer(rm_lst=['nm'])))
+        #steps.append(('del', DelBlockTransformer(rm_lst=['nm'])))
         steps.append(('vals', ValueTransformer()))
         steps.append(('est', est))
 

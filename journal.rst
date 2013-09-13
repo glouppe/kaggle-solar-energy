@@ -443,3 +443,20 @@ RMSE: 5659077.89
 R2: 0.47
 
 date + station pos + local dswrf_sfc
+(250586, 31) (250586,)
+MAE:  2257993.58
+RMSE: 3303983.09
+R2: 0.82
+
+date + station pos + local dswrf_sfc + global dswrf_sfc
+(250586, 175) (250586,)
+MAE:  2347709.14
+RMSE: 3388497.07
+R2: 0.81
+
+date + station pos + global dswrf_sfc
+X_p.shape:  (250586, 150)
+(250586, 150) (250586,)
+MAE:  2512085.61
+RMSE: 3568142.75
+R2: 0.79
