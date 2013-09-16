@@ -484,3 +484,26 @@ MAE:  0.254637
 RMSE: 0.380834
 R2: 0.845289
 
+
+
+15.9.2013
+^^^^^^^^^
+
+Kringing experiments
+
+Using Ridge interpolation (alpha=0.1), Ridge fixed
+MAE:  2527573.75
+
+Using Kringing interpolation (theta0=4.5, regr=quadratic), Ridge fixed
+MAE:  4400000.00
+
+
+Using Ridge interpolation (alpha=0.1), RidgeCV
+MAE:  2462489.94
+alpha=0.01
+
+Using Kringing interpolation (theta0=10, regr=const), RidgeCV
+MAE:  2227435.74
+alpha=1.0
+
+YEAH!!!

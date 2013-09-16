@@ -123,7 +123,7 @@ def train_test(args):
     X_train, y_train = X[:offset], y[:offset]
     X_test, y_test = X[offset:], y[offset:]
 
-    #est = RidgeCV(alphas=10. ** np.arange(-7, 1, 1), normalize=True)
+    est = RidgeCV(alphas=10. ** np.arange(-7, 1, 1), normalize=True)
     #est = Ridge(alpha=1e-5, normalize=True)
     # est = RandomForestRegressor(n_estimators=100, verbose=3,
     #                             max_features=0.3, min_samples_leaf=7,

@@ -22,6 +22,7 @@ from sklearn.random_projection import GaussianRandomProjection
 from nolearn.dbn import DBN
 
 from .sa import StructuredArray
+from .kringing import Interpolate, Kringing
 
 
 class ValueTransformer(BaseEstimator, TransformerMixin):
@@ -671,7 +672,7 @@ class LocalModel(BaseEstimator, RegressorMixin):
             #'nm_enc_dswrf_sfc': None,
             },
             aux=True)
-        l3= LocalTransformer(hour_mean=True, k=2, fxs={
+        l3 = LocalTransformer(hour_mean=True, k=2, fxs={
             'nm': ['dswrf_sfc', 'uswrf_sfc', 'ulwrf_sfc', 'apcp_sfc',
                    'tcolc_eatm', 'pwat_eatm'],
             'nmft': ['uswrf_sfc/dswrf_sfc', 'ulwrf_sfc/dlwrf_sfc',
@@ -792,22 +793,23 @@ class Baseline(PipelineModel):
             #                                      reshape=True,
             #                                      codebook='kmeans',
             #                                      ens_mean=True)),
-            ('ft', FunctionTransformer(block='nm', new_block='nmft',
-                                            ops=(
-                                                ('uswrf_sfc', '/', 'dswrf_sfc'),
-                                                ('ulwrf_sfc', '/', 'dlwrf_sfc'),
-                                                ('ulwrf_sfc', '/', 'uswrf_sfc'),
-                                                ('dlwrf_sfc', '/', 'dswrf_sfc'),
-                                                #('dswrf_sfc', 'pow', 1.0),
-                                                ))),
-            ('bl_trans', BaselineTransformer(b_name='nm')),
-            ('bl_trans2', BaselineTransformer(b_name='nmft')),
+            ## ('ft', FunctionTransformer(block='nm', new_block='nmft',
+            ##                                 ops=(
+            ##                                     ('uswrf_sfc', '/', 'dswrf_sfc'),
+            ##                                     ('ulwrf_sfc', '/', 'dlwrf_sfc'),
+            ##                                     ('ulwrf_sfc', '/', 'uswrf_sfc'),
+            ##                                     ('dlwrf_sfc', '/', 'dswrf_sfc'),
+            ##                                     #('dswrf_sfc', 'pow', 1.0),
+            ##                                     ))),
+            #('bl_trans', BaselineTransformer(b_name='nm')),
+            #('bl_trans2', BaselineTransformer(b_name='nmft')),
+            ('interp', Interpolate(flatten=True)),
             ]
         if self.date:
             steps.append(('date', DateTransformer(op=self.date)))
 
         #steps.append(('loc_glo', LocalGlobalTransformer()))
-        #steps.append(('del', DelBlockTransformer(rm_lst=['nm'])))
+        steps.append(('del', DelBlockTransformer(rm_lst=['nm'])))
         steps.append(('vals', ValueTransformer()))
         if self.est is not None:
             steps.append(('est', est))
