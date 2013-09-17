@@ -11,6 +11,19 @@ from sklearn.gaussian_process import GaussianProcess
 
 
 class Interpolate(TransformerMixin, BaseEstimator):
+    """Interpolate station features.
+
+    This base class interpolates station features by fitting
+    an interpolator (ie. estimator) for each 9x16 tile and
+    interpolates the 98 station locations.
+    The interpolator considers lat, lon, and elev.
+
+    Attributes
+    ----------
+    est : RegressionMixin
+        The estimator that fits a 144 x 3 matrix X and predicts
+        a 98 x 3 matrix X_test.
+    """
 
     est = Ridge(normalize=True, alpha=0.1)
 
@@ -61,13 +74,41 @@ class Interpolate(TransformerMixin, BaseEstimator):
 class Kringing(Interpolate):
 
     est = GaussianProcess(corr='squared_exponential',
-                          theta0=10.0)
+                          theta0=5.0)
 
 
-
-if __name__ == '__main__':
-
+def transform_data():
     from solaris.run import load_data
+    from sklearn.externals import joblib
+
+    data = load_data()
+
+    kringing = Kringing()
+    print('_' * 80)
+    print(kringing)
+    print
+
+    for key in ['train', 'test']:
+        print('_' * 80)
+        print('transforming %s' % key)
+        print
+        X = data['X_%s' % key]
+
+        X = kringing.fit_transform(X)
+        data['X_%s' % key] = X
+
+    print
+    print('dumping data')
+    joblib.dump(data, 'data/interp2_data.pkl')
+
+
+def benchmark():
+    from solaris.run import load_data
+    from sklearn import grid_search
+    from sklearn import metrics
+
+    def rmse(y_true, pred):
+        return np.sqrt(metrics.mean_squared_error(y_true, pred))
 
     data = load_data()
     X = data['X_train']
@@ -75,23 +116,20 @@ if __name__ == '__main__':
 
     x = Interpolate._grid_data()
 
-    y = X.nm[0, 0, 0, 3].ravel()
+    fx = 0
+    day = 180
+    y = X.nm[day, fx, 0, 3]
     mask = np.ones_like(y, dtype=np.bool)
-    test_idx = np.c_[np.random.randint(2, 7, 20),
-                     np.random.randint(3, 13, 20)]
+    rs = np.random.RandomState(1)
+    test_idx = np.c_[rs.randint(2, 7, 20),
+                     rs.randint(3, 13, 20)]
     print test_idx.shape
     mask[test_idx[:, 0], test_idx[:, 1]] = False
     mask = mask.ravel()
+    y = y.ravel()
 
     #import IPython
     #IPython.embed()
-
-
-    X_train = x[mask]
-    y_train = y[mask]
-
-    X_test = x[~mask]
-    y_test = y[~mask]
 
     class KFold(object):
 
@@ -104,19 +142,23 @@ if __name__ == '__main__':
     params = {'normalize': [True, False],
               'alpha': 10.0 ** np.arange(-7, 1, 1)}
     gs = grid_search.GridSearchCV(est, params, cv=KFold(),
-                                  loss_func=metrics.mean_squared_error).fit(x, y)
+                                  loss_func=rmse).fit(x, y)
     print gs.grid_scores_
     print gs.best_score_
-
 
     est = GaussianProcess()
     params = {'corr': ['squared_exponential'],
               #'regr': ['constant', 'linear', 'quadratic'],
-              'theta0': [10],
+              'theta0': np.arange(4, 11),
               }
 
     gs = grid_search.GridSearchCV(est, params, cv=KFold(),
-                                  loss_func=metrics.mean_squared_error).fit(x, y)
+                                  loss_func=rmse).fit(x, y)
     print gs.grid_scores_
     print gs.best_params_
     print gs.best_score_
+
+
+if __name__ == '__main__':
+    transform_data()
+    #benchmark()

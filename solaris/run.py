@@ -52,7 +52,7 @@ from .err_analysis import err_analysis
 
 
 def load_data():
-    data = joblib.load('data/data.pkl', mmap_mode='r')
+    data = joblib.load('data/interp_data.pkl', mmap_mode='r')
     return data
 
 
@@ -114,6 +114,7 @@ def train_test(args):
     X = data['X_train']
     y = data['y_train']
 
+
     # just first 50 stations (otherwise too much)
     ## y = y[:, :25]
     ## X.station_info = X.station_info[:25]
@@ -123,17 +124,17 @@ def train_test(args):
     X_train, y_train = X[:offset], y[:offset]
     X_test, y_test = X[offset:], y[offset:]
 
-    est = RidgeCV(alphas=10. ** np.arange(-7, 1, 1), normalize=True)
+    #est = RidgeCV(alphas=10. ** np.arange(-7, 1, 1), normalize=True)
     #est = Ridge(alpha=1e-5, normalize=True)
     # est = RandomForestRegressor(n_estimators=100, verbose=3,
-    #                             max_features=0.3, min_samples_leaf=7,
-    #                             n_jobs=2, bootstrap=False,
+    #                             max_features=33, min_samples_leaf=3,
+    #                             n_jobs=1, bootstrap=True
     #                             random_state=1)
-    ## est = GradientBoostingRegressor(n_estimators=1000, verbose=2, max_depth=3,
-    ##                                 min_samples_leaf=5, learning_rate=0.1,
-    ##                                 max_features=250,
-    ##                                 random_state=1,
-    ##                                 loss='ls')
+    est = GradientBoostingRegressor(n_estimators=10000, verbose=2, max_depth=5,
+                                    min_samples_leaf=5, learning_rate=0.01,
+                                    max_features=33,
+                                    random_state=1,
+                                    loss='lad')
 
     model_cls = MODELS[args['<model>']]
     model = model_cls(est=est)
@@ -174,16 +175,16 @@ def submit(args):
 
     X_test = data['X_test']
 
-    ## est = RidgeCV(alphas=10. ** np.arange(-7, -1, 1), normalize=True)
+    # est = RidgeCV(alphas=10. ** np.arange(-7, -1, 1), normalize=True)
     ## est = Ridge(alpha=1e-5, normalize=True)
     ## est = RandomForestRegressor(n_estimators=25, verbose=3,
     ##                             max_features=0.3, min_samples_leaf=3,
     ##                             n_jobs=1, bootstrap=False)
-    est = GradientBoostingRegressor(n_estimators=500, verbose=2, max_depth=4,
-                                    min_samples_leaf=3, learning_rate=0.1,
-                                    max_features=265,
+    est = GradientBoostingRegressor(n_estimators=1000, verbose=2, max_depth=5,
+                                    min_samples_leaf=5, learning_rate=0.05,
+                                    max_features=33,
                                     random_state=1,
-                                    loss='ls')
+                                    loss='lad')
 
     model_cls = MODELS[args['<model>']]
     model = model_cls(est=est)
@@ -212,7 +213,7 @@ def submit(args):
     stid = pd.read_csv('data/station_info.csv')['stid']
     out = pd.DataFrame(index=date_idx, columns=stid, data=pred)
     out.index.name = 'Date'
-    out.to_csv('hk_1.csv')
+    out.to_csv('hk_2.csv')
     import IPython
     IPython.embed()
 

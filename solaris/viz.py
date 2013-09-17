@@ -20,6 +20,7 @@ def plot_fx_imp(est, fx_names, k=50):
         fx_imp = np.abs(est.coef_)
 
     idx = fx_imp.argsort()[::-1][:k]
-    plt.bar(np.arange(idx.shape[0]), fx_imp[idx])
-    plt.xticks(np.arange(idx.shape[0]), np.array(fx_names)[idx], rotation=90)
+    plt.barh(np.arange(idx.shape[0]), fx_imp[idx], height=1.0)
+    plt.yticks(np.arange(idx.shape[0]) + 0.3, np.array(fx_names)[idx])
+    plt.show()
 

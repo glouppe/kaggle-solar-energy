@@ -507,3 +507,85 @@ MAE:  2227435.74
 alpha=1.0
 
 YEAH!!!
+
+
+
+Kringing results
+----------------
+w/o date and station info
+w/ hour, mean and sum
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learn_rate=None,
+             learning_rate=0.1, loss='ls', max_depth=4, max_features=33,
+             min_samples_leaf=5, min_samples_split=2, n_estimators=500,
+             random_state=1, subsample=1.0, verbose=2),
+       intp_blocks=('nm_intp', 'nmft_intp'))
+MAE:  2051837.90
+RMSE: 3045640.26
+R2: 0.85
+
+w/ date and station info
+w/ hour, mean and sum
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learn_rate=None,
+             learning_rate=0.1, loss='ls', max_depth=4, max_features=33,
+             min_samples_leaf=5, min_samples_split=2, n_estimators=500,
+             random_state=1, subsample=1.0, verbose=2),
+       intp_blocks=('nm_intp', 'nmft_intp'))
+MAE:  2052936.84
+RMSE: 3043493.56
+R2: 0.85
+
+16.9.2013
+---------
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learn_rate=None,
+             learning_rate=0.05, loss='huber', max_depth=5,
+             max_features=33, min_samples_leaf=5, min_samples_split=2,
+             n_estimators=1000, random_state=1, subsample=1.0, verbose=2),
+       intp_blocks=('nm_intp', 'nmft_intp'))
+
+[FT] nr new features: 4
+(('uswrf_sfc', '/', 'dswrf_sfc'), ('ulwrf_sfc', '/', 'dlwrf_sfc'), ('ulwrf_sfc', '/', 'uswrf_sfc'), ('dlwrf_sfc', '/', 'dswrf_sfc'))
+transform to shape:  (250586, 118)
+MAE:  2013507.09
+RMSE: 3053795.22
+R2: 0.85
+
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learn_rate=None,
+             learning_rate=0.05, loss='ls', max_depth=5, max_features=33,
+             min_samples_leaf=5, min_samples_split=2, n_estimators=1000,
+             random_state=1, subsample=1.0, verbose=2),
+       intp_blocks=('nm_intp', 'nmft_intp'))
+
+(('uswrf_sfc', '/', 'dswrf_sfc'), ('ulwrf_sfc', '/', 'dlwrf_sfc'), ('ulwrf_sfc', '/', 'uswrf_sfc'), ('dlwrf_sfc', '/', 'dswrf_sfc'))
+transform to shape:  (250586, 118)
+MAE:  2042894.75
+RMSE: 3036872.99
+R2: 0.85
+
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learn_rate=None,
+             learning_rate=0.05, loss='lad', max_depth=5, max_features=33,
+             min_samples_leaf=5, min_samples_split=2, n_estimators=1000,
+             random_state=1, subsample=1.0, verbose=2),
+       intp_blocks=('nm_intp', 'nmft_intp'))
+(('uswrf_sfc', '/', 'dswrf_sfc'), ('ulwrf_sfc', '/', 'dlwrf_sfc'), ('ulwrf_sfc', '/', 'uswrf_sfc'), ('dlwrf_sfc', '/', 'dswrf_sfc'))
+transform to shape:  (250586, 118)
+MAE:  2006458.87
+RMSE: 3124858.25
+R2: 0.84
+-> seems to be the only one where MAE is improving!
+MOA trees
+
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learn_rate=None,
+             learning_rate=0.01, loss='lad', max_depth=5, max_features=33,
+             min_samples_leaf=5, min_samples_split=2, n_estimators=10000,
+             random_state=1, subsample=1.0, verbose=2),
+       intp_blocks=('nm_intp', 'nmft_intp'))
+(('uswrf_sfc', '/', 'dswrf_sfc'), ('ulwrf_sfc', '/', 'dlwrf_sfc'), ('ulwrf_sfc', '/', 'uswrf_sfc'), ('dlwrf_sfc', '/', 'dswrf_sfc'))
+transform to shape:  (250586, 118)
+MAE:  1994451.17
+RMSE: 3110324.08
+R2: 0.84

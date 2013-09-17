@@ -22,7 +22,6 @@ from sklearn.random_projection import GaussianRandomProjection
 from nolearn.dbn import DBN
 
 from .sa import StructuredArray
-from .kringing import Interpolate, Kringing
 
 
 class ValueTransformer(BaseEstimator, TransformerMixin):
@@ -793,23 +792,22 @@ class Baseline(PipelineModel):
             #                                      reshape=True,
             #                                      codebook='kmeans',
             #                                      ens_mean=True)),
-            ## ('ft', FunctionTransformer(block='nm', new_block='nmft',
-            ##                                 ops=(
-            ##                                     ('uswrf_sfc', '/', 'dswrf_sfc'),
-            ##                                     ('ulwrf_sfc', '/', 'dlwrf_sfc'),
-            ##                                     ('ulwrf_sfc', '/', 'uswrf_sfc'),
-            ##                                     ('dlwrf_sfc', '/', 'dswrf_sfc'),
-            ##                                     #('dswrf_sfc', 'pow', 1.0),
-            ##                                     ))),
-            #('bl_trans', BaselineTransformer(b_name='nm')),
-            #('bl_trans2', BaselineTransformer(b_name='nmft')),
-            ('interp', Interpolate(flatten=True)),
+            ('ft', FunctionTransformer(block='nm', new_block='nmft',
+                                            ops=(
+                                                ('uswrf_sfc', '/', 'dswrf_sfc'),
+                                                ('ulwrf_sfc', '/', 'dlwrf_sfc'),
+                                                ('ulwrf_sfc', '/', 'uswrf_sfc'),
+                                                ('dlwrf_sfc', '/', 'dswrf_sfc'),
+                                                #('dswrf_sfc', 'pow', 1.0),
+                                                ))),
+            ('bl_trans', BaselineTransformer(b_name='nm')),
+            ('bl_trans2', BaselineTransformer(b_name='nmft')),
             ]
         if self.date:
             steps.append(('date', DateTransformer(op=self.date)))
 
         #steps.append(('loc_glo', LocalGlobalTransformer()))
-        steps.append(('del', DelBlockTransformer(rm_lst=['nm'])))
+        #steps.append(('del', DelBlockTransformer(rm_lst=['nm'])))
         steps.append(('vals', ValueTransformer()))
         if self.est is not None:
             steps.append(('est', est))
@@ -965,7 +963,102 @@ class DBNModel(BaseEstimator, RegressorMixin):
         return pred
 
 
+class KringingModel(BaseEstimator, RegressorMixin):
+
+    def __init__(self, est, intp_blocks=('nm_intp', 'nmft_intp')):
+        self.est = est
+        self.intp_blocks = intp_blocks
+
+    def fit(self, X_st, y):
+        self.n_stations = y.shape[1]
+        X = self.transform(X_st)
+        y = self.transform_labels(y)
+        self.est.fit(X, y)
+        return self
+
+    def predict(self, X_st):
+        X = self.transform(X_st)
+        pred = self.est.predict(X)
+        pred = pred.reshape((X_st.shape[0], self.n_stations))
+        return pred
+
+    def transform_labels(self, y):
+        return y.ravel()
+
+    def transform(self, X_st):
+        out = []
+        fx_names = []
+        n_days = X_st.shape[0]
+
+        ## trans func
+        if 'nm_intp' not in X_st.fx_name:
+            X_st.fx_name['nm_intp'] = X_st.fx_name['nm']
+
+        ft = FunctionTransformer(block='nm_intp', new_block='nmft_intp',
+                                 ops=(
+                                     ('uswrf_sfc', '/', 'dswrf_sfc'),
+                                     ('ulwrf_sfc', '/', 'dlwrf_sfc'),
+                                     ('ulwrf_sfc', '/', 'uswrf_sfc'),
+                                     ('dlwrf_sfc', '/', 'dswrf_sfc'),
+                                     ))
+        X_st = ft.transform(X_st)
+
+        ## transform date
+        date_tf = DateTransformer('doy')
+        X_st = date_tf.transform(X_st)
+        date = np.repeat(X_st.date, self.n_stations)[:, np.newaxis]
+        out.append(date)
+        fx_names.append('doy')
+
+        # ## transform station-info
+        stinfo = X_st.station_info
+        stinfo = np.tile(stinfo, (n_days, 1))
+        out.append(stinfo)
+        fx_names.extend(['lat', 'lon', 'elev'])
+
+        ## transform nm_intp to hourly features
+        for b_name in self.intp_blocks:
+            X = X_st[b_name]
+            # swap features and station interpolations
+            X = np.swapaxes(X, 1, 3)
+            fx_names.extend(['_'.join((b_name, fx, str(h)))
+                             for fx in X_st.fx_name[b_name]
+                             for h in range(X.shape[-2])])
+            X = X.reshape((np.prod(X.shape[:2]), np.prod(X.shape[2:])))
+            out.append(X)
+
+        ## transform to mean features
+        for b_name in self.intp_blocks:
+            X = X_st[b_name]
+            # swap features and station interpolations
+            X = np.swapaxes(X, 1, 3)
+            # n_day x n_stat x n_hour x n_fx
+            X = np.mean(X, axis=2)
+            fx_names.extend(['_'.join((b_name, fx, 'm'))
+                             for fx in X_st.fx_name[b_name]])
+            X = X.reshape((np.prod(X.shape[:2]), np.prod(X.shape[2:])))
+            out.append(X)
+
+        ## transform to mean features
+        # for b_name in ('nm_intp',):
+        #     X = X_st[b_name]
+        #     # swap features and station interpolations
+        #     X = np.swapaxes(X, 1, 3)
+        #     # n_day x n_stat x n_hour x n_fx
+        #     X = np.cumsum(X, axis=2)
+        #     fx_names.extend(['_'.join((b_name, fx, 'm'))
+        #                      for fx in X_st.fx_name[b_name]])
+        #     X = X.reshape((np.prod(X.shape[:2]), np.prod(X.shape[2:])))
+        #     out.append(X)
+
+        out = np.hstack(out)
+        self.fx_names_ = fx_names
+        print 'transform to shape: ', out.shape
+        return out
+
+
 MODELS = {'baseline': Baseline,
           'ensemble': EnsembledRegressor,
           'dbn': DBNModel,
-          'local': LocalModel}
+          'local': LocalModel,
+          'kringing': KringingModel}
