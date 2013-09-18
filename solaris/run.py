@@ -127,8 +127,8 @@ def train_test(args):
 
     #est = RidgeCV(alphas=10. ** np.arange(-7, 1, 1), normalize=True)
     #est = Ridge(alpha=1e-5, normalize=True)
-    est = GradientBoostingRegressor(n_estimators=1000, verbose=2, max_depth=5,
-                                    min_samples_leaf=5, learning_rate=0.05,
+    est = GradientBoostingRegressor(n_estimators=4000, verbose=2, max_depth=6,
+                                    min_samples_leaf=5, learning_rate=0.02,
                                     max_features=33, random_state=1,
                                     loss='lad')
 
@@ -179,15 +179,9 @@ def submit(args):
 
     X_test = data['X_test']
 
-    # est = RidgeCV(alphas=10. ** np.arange(-7, -1, 1), normalize=True)
-    ## est = Ridge(alpha=1e-5, normalize=True)
-    ## est = RandomForestRegressor(n_estimators=25, verbose=3,
-    ##                             max_features=0.3, min_samples_leaf=3,
-    ##                             n_jobs=1, bootstrap=False)
-    est = GradientBoostingRegressor(n_estimators=1000, verbose=2, max_depth=5,
-                                    min_samples_leaf=5, learning_rate=0.05,
-                                    max_features=33,
-                                    random_state=1,
+    est = GradientBoostingRegressor(n_estimators=4000, verbose=2, max_depth=6,
+                                    min_samples_leaf=5, learning_rate=0.02,
+                                    max_features=33, random_state=1,
                                     loss='lad')
 
     model_cls = MODELS[args['<model>']]
@@ -217,7 +211,7 @@ def submit(args):
     stid = pd.read_csv('data/station_info.csv')['stid']
     out = pd.DataFrame(index=date_idx, columns=stid, data=pred)
     out.index.name = 'Date'
-    out.to_csv('hk_2.csv')
+    out.to_csv('hk_4.csv')
     import IPython
     IPython.embed()
 

@@ -55,7 +55,11 @@ class Interpolate(TransformerMixin, BaseEstimator):
         n_days, n_fx, n_ens, n_hour, n_lat, n_lon = X_nm.shape
         X_nm_std = X_nm.std(axis=2)
         X_nm_m = X_nm.mean(axis=2)
-        nuggets = (X_nm_std / X_nm_m) ** 2.0
+        if self.use_nugget:
+            from sklearn.gaussian_process.gaussian_process import MACHINE_EPSILON
+            nuggets = (X_nm_std / X_nm_m) ** 2.0
+            mask = ~np.isfinite(nuggets)
+            nuggets[mask] = 10. * MACHINE_EPSILON
 
         pred = np.zeros((n_days, n_fx, n_hour, n_stations))
         if self.use_mse:
@@ -66,8 +70,8 @@ class Interpolate(TransformerMixin, BaseEstimator):
             for f in range(n_fx):
                 for h in range(n_hour):
                     y = X_nm_m[d, f, h].ravel()
-                    nugget = nuggets[d, f, h].ravel()
                     if self.use_nugget:
+                        nugget = nuggets[d, f, h].ravel()
                         # set nugget
                         est.set_params(nugget=nugget)
                     est.fit(x, y)
@@ -120,7 +124,7 @@ def transform_data():
 
     print
     print('dumping data')
-    joblib.dump(data, 'data/interp2_data.pkl')
+    joblib.dump(data, 'data/interp3_data.pkl')
 
 
 def benchmark():
