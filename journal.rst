@@ -589,3 +589,41 @@ transform to shape:  (250586, 118)
 MAE:  1994451.17
 RMSE: 3110324.08
 R2: 0.84
+
+Added 4 more feature transformations
+------------------------------------
+
+('tmax_2m', '-', 'tmin_2m'),
+('tmp_2m', '-', 'tmp_sfc'),
+('apcp_sfc', '-', 'pwat_eatm'),
+('apcp_sfc', '/', 'pwat_eatm'),
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learn_rate=None,
+             learning_rate=0.02, loss='lad', max_depth=6, max_features=33,
+             min_samples_leaf=5, min_samples_split=2, n_estimators=4000,
+             random_state=1, subsample=1.0, verbose=2),
+       intp_blocks=('nm_intp', 'nmft_intp'))
+MAE:  1980717.16
+RMSE: 3083295.06
+R2: 0.84
+
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learn_rate=None,
+             learning_rate=0.05, loss='lad', max_depth=7, max_features=33,
+             min_samples_leaf=5, min_samples_split=2, n_estimators=2000,
+             random_state=1, subsample=1.0, verbose=2),
+       intp_blocks=('nm_intp', 'nmft_intp'))
+
+MAE:  1996021.71
+RMSE: 3089288.60
+R2: 0.84
+
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learn_rate=None,
+             learning_rate=0.05, loss='lad', max_depth=5, max_features=33,
+             min_samples_leaf=5, min_samples_split=2, n_estimators=1000,
+             random_state=1, subsample=1.0, verbose=2),
+       intp_blocks=('nm_intp', 'nmft_intp'))
+MAE:  1992978.34
+RMSE: 3099598.33
+R2: 0.84

@@ -26,6 +26,8 @@ class Interpolate(TransformerMixin, BaseEstimator):
     """
 
     est = Ridge(normalize=True, alpha=0.1)
+    use_nugget = False
+    use_mse = False
 
     def __init__(self, flatten=False):
         self.flatten = flatten
@@ -51,23 +53,40 @@ class Interpolate(TransformerMixin, BaseEstimator):
 
         X_nm = X.nm
         n_days, n_fx, n_ens, n_hour, n_lat, n_lon = X_nm.shape
-        X_nm = X_nm.mean(axis=2)
+        X_nm_std = X_nm.std(axis=2)
+        X_nm_m = X_nm.mean(axis=2)
+        nuggets = (X_nm_std / X_nm_m) ** 2.0
 
-        out = np.zeros((n_days, n_fx, n_hour, n_stations))
+        pred = np.zeros((n_days, n_fx, n_hour, n_stations))
+        if self.use_mse:
+            sigma2 = np.zeros((n_days, n_fx, n_hour, n_stations))
         est = self.est
         for d in range(n_days):
             print 'interpolate day: %d' % d
             for f in range(n_fx):
                 for h in range(n_hour):
-                    y = X_nm[d, f, h].ravel()
+                    y = X_nm_m[d, f, h].ravel()
+                    nugget = nuggets[d, f, h].ravel()
+                    if self.use_nugget:
+                        # set nugget
+                        est.set_params(nugget=nugget)
                     est.fit(x, y)
-                    interp = est.predict(x_test)
-                    out[d, f, h] = interp
+                    if self.use_mse:
+                        c_pred, c_sigma2 = est.predict(x_test, eval_MSE=True)
+                        sigma2[d, f, h] = c_sigma2
+                    else:
+                        c_pred = est.predict(x_test)
+                    pred[d, f, h] = c_pred
         if self.flatten:
-            out = out.reshape((out.shape[0], np.prod(out.shape[1:])))
+            pred = pred.reshape((pred.shape[0], np.prod(pred.shape[1:])))
+            if self.use_mse:
+                sigma2 = sigma2.reshape((sigma2.shape[0],
+                                         np.prod(sigma2.shape[1:])))
 
-        print 'out.shape', out.shape
-        X.blocks['nm_intp'] = out
+        print 'pred.shape', pred.shape
+        X.blocks['nm_intp'] = pred
+        if self.use_mse:
+            X.blocks['nm_intp_sigma'] = np.sqrt(sigma2)
         return X
 
 
@@ -75,6 +94,8 @@ class Kringing(Interpolate):
 
     est = GaussianProcess(corr='squared_exponential',
                           theta0=5.0)
+    use_nugget = True
+    use_mse = True
 
 
 def transform_data():
@@ -118,7 +139,8 @@ def benchmark():
 
     fx = 0
     day = 180
-    y = X.nm[day, fx, 0, 3]
+    y = X.nm[day, fx].mean(axis=0)[3]
+    nugget = X.nm[day, fx].std(axis=0)[3]
     mask = np.ones_like(y, dtype=np.bool)
     rs = np.random.RandomState(1)
     test_idx = np.c_[rs.randint(2, 7, 20),
@@ -127,6 +149,16 @@ def benchmark():
     mask[test_idx[:, 0], test_idx[:, 1]] = False
     mask = mask.ravel()
     y = y.ravel()
+    nugget = nugget.ravel()[mask]
+
+    print '_' * 80
+    est = GaussianProcess(corr='squared_exponential', theta0=4.0,
+                          nugget=(nugget / y[mask]) ** 2.0)
+    est.fit(x[mask], y[mask])
+    pred = est.predict(x[~mask])
+    print 'MAE: %.2f' % metrics.mean_absolute_error(y[~mask], pred)
+
+    print '_' * 80
 
     #import IPython
     #IPython.embed()
@@ -157,6 +189,25 @@ def benchmark():
     print gs.grid_scores_
     print gs.best_params_
     print gs.best_score_
+
+
+def inspect():
+    from solaris.run import load_data
+    data = load_data()
+    X = data['X_train']
+    y = data['y_train']
+
+    x_train = Interpolate._grid_data()
+
+    fx = 0
+    day = 180
+    y_train = X.nm[day, fx, 0, 3]
+    est = GaussianProcess(corr='squared_exponential',
+                          theta0=4.0)
+    est.fit(x_train, y_train)
+
+    n_lat, n_lon = y_train.shape
+    m = np.mgrid[0:n_lat:0.5, 0:n_lon:0.5]
 
 
 if __name__ == '__main__':

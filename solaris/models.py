@@ -1000,6 +1000,10 @@ class KringingModel(BaseEstimator, RegressorMixin):
                                      ('ulwrf_sfc', '/', 'dlwrf_sfc'),
                                      ('ulwrf_sfc', '/', 'uswrf_sfc'),
                                      ('dlwrf_sfc', '/', 'dswrf_sfc'),
+                                     ('tmax_2m', '-', 'tmin_2m'),
+                                     ('tmp_2m', '-', 'tmp_sfc'),
+                                     ('apcp_sfc', '-', 'pwat_eatm'),
+                                     ('apcp_sfc', '/', 'pwat_eatm'),
                                      ))
         X_st = ft.transform(X_st)
 

@@ -16,6 +16,7 @@ Options:
   --verbose=LEVEL  Verbosity level [default: 2].
   --n_jobs=N_JOBS  Number of CPUs [default: 1].
   --scaley      Standardize Y before fit.
+  --err-analysis   Show error analysis report
 """
 import numpy as np
 import pandas as pd
@@ -103,7 +104,7 @@ def cross_val(args):
     for (train, test), fold_pred in izip(cv, preds):
         pred[test] = fold_pred
 
-    err_analysis(y, pred)
+    err_analysis(pred, y)
     import IPython
     IPython.embed()
 
@@ -126,15 +127,11 @@ def train_test(args):
 
     #est = RidgeCV(alphas=10. ** np.arange(-7, 1, 1), normalize=True)
     #est = Ridge(alpha=1e-5, normalize=True)
-    # est = RandomForestRegressor(n_estimators=100, verbose=3,
-    #                             max_features=33, min_samples_leaf=3,
-    #                             n_jobs=1, bootstrap=True
-    #                             random_state=1)
-    est = GradientBoostingRegressor(n_estimators=10000, verbose=2, max_depth=5,
-                                    min_samples_leaf=5, learning_rate=0.01,
-                                    max_features=33,
-                                    random_state=1,
+    est = GradientBoostingRegressor(n_estimators=1000, verbose=2, max_depth=5,
+                                    min_samples_leaf=5, learning_rate=0.05,
+                                    max_features=33, random_state=1,
                                     loss='lad')
+
 
     model_cls = MODELS[args['<model>']]
     model = model_cls(est=est)
@@ -150,7 +147,9 @@ def train_test(args):
     if args['--scaley']:
         y_train = scaler.fit_transform(y_train.copy())
 
+    t0 = time()
     model.fit(X_train, y_train)
+    print('model.fit took %.fm' % ((time() - t0) / 60.))
     pred = model.predict(X_test)
     if args['--scaley']:
         pred = scaler.inverse_transform(pred)
@@ -158,6 +157,11 @@ def train_test(args):
     print("MAE:  %0.2f" % metrics.mean_absolute_error(y_test, pred))
     print("RMSE: %0.2f" % np.sqrt(metrics.mean_squared_error(y_test, pred)))
     print("R2: %0.2f" % metrics.r2_score(y_test, pred))
+
+    if args['--err-analysis']:
+        # reread test data because has been transformed inplace
+        X_test, y_test = X[offset:], y[offset:]
+        err_analysis(pred, y_test, X_test=X_test)
 
     import IPython
     IPython.embed()
@@ -202,7 +206,7 @@ def submit(args):
 
     t0 = time()
     model.fit(X_train, y_train)
-    print('Model trained in %.fm' % ((time() - t0) / 60.))
+    print('model.fit took %.fm' % ((time() - t0) / 60.))
     pred = model.predict(X_test)
     if args['--scaley']:
         pred = scaler.inverse_transform(pred)

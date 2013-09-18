@@ -3,29 +3,37 @@ import numpy as np
 
 from matplotlib import pyplot as plt
 
+from sklearn import metrics
 
-def err_analysis(y_true, y_pred, station_info=None, date=None):
+
+def err_analysis(y_pred, y_test=None, X_test=None, station_info=None, date=None):
+    if X_test is not None:
+        date = X_test.date
+        station_info = pd.DataFrame(data=X_test.station_info,
+                                        columns=['nlat', 'elon', 'elev'])
+        station_info['stid'] = np.arange(station_info.shape[0])
+
     if date is None:
-        index = pd.date_range('1/1/1994', periods=y_true.shape[0], freq='D')
+        index = pd.date_range('1/1/1994', periods=y_test.shape[0], freq='D')
     else:
         index = date
 
-    if station_info is None:
-        station_info = pd.read_csv('data/station_info.csv')
-        st_cols = station_info['stid']
-    else:
-        st_cols = np.arange(station_info.shape[0])
+    ## if station_info is None:
+    ##     station_info = pd.read_csv('data/station_info.csv')
+    ##     st_cols = station_info['stid']
+    ## else:
+    ##     st_cols = np.arange(station_info.shape[0])
 
-    station_residuals = pd.DataFrame(index=index, columns=st_cols,
-                                     data=(y_true - y_pred))
+    station_residuals = pd.DataFrame(index=index, columns=station_info['stid'],
+                                     data=(y_test - y_pred))
 
-    # plot MAE by day
+    # # plot MAE by day
     plt.figure()
     daily_mae = np.abs(station_residuals).mean(axis=1)
     daily_mae.plot(label='daily MAE')
     plt.title('Daily MAE')
 
-    # plot MAE by day of year
+    # # plot MAE by day of year
     daily_ae = np.abs(station_residuals).sum(axis=1)
     doy = daily_ae.index.map(lambda x: x.dayofyear)
     df = pd.DataFrame(index=daily_ae.index, data={'ae': daily_ae, 'doy': doy})
@@ -34,21 +42,33 @@ def err_analysis(y_true, y_pred, station_info=None, date=None):
     plt.title('Day-of-year MAE')
 
 
-    # plot MAE by month
+    # # plot MAE by month
     daily_ae = np.abs(station_residuals).sum(axis=1)
     month = daily_ae.index.map(lambda x: x.month)
     df = pd.DataFrame(index=daily_ae.index, data={'ae': daily_ae, 'month': month})
     doy_mae = df.groupby('month').mean()
-    plt.figure(figsize=(24, 8))
     doy_mae.plot(kind='bar')
     plt.title('Monthly MAE')
 
     # plot MAE by station
-    plt.figure(figsize=(14, 6))
+    plt.figure()
     station_mae = np.abs(station_residuals).mean(axis=0)
     station_mae.sort()
     station_mae.plot(kind='bar', grid=False)
     plt.title('Station MAE')
+
+    # plot residuals of worst stations
+    k = 6
+    worst_stid = station_mae.index[-k:]
+    f, axes = plt.subplots(k // 2, 2, sharex=True, sharey=True)
+    for stid, ax in zip(worst_stid, axes.ravel()):
+        station_residuals.iloc[:, stid].plot(ax=ax)
+        ax.set_title('Station id %d' % stid)
+
+    # scatter worst stations
+    # plt.scatter(station_info.elon[worst_stid],
+    #             station_info.nlat[worst_stid],
+    #             s=7**2)
 
     # plot stations on lon-lat grid and colorcode MAE to
     # see spatial-mae correlation
@@ -56,6 +76,23 @@ def err_analysis(y_true, y_pred, station_info=None, date=None):
     station_info = station_info.join(station_mae, on='stid')
     plt.figure()
     plt.scatter(station_info.elon, station_info.nlat,
-                c=station_info.mae / station_info.mae.max())
+                c=station_info.mae / station_info.mae.max(),
+                s=7**2)
     plt.colorbar()
+
+    # # plot true-pred correlation
+    plt.figure()
+    plt.scatter(y_test.ravel(), y_pred.ravel(), s=4)
+    plt.plot([0.0, 4e7], [0.0, 4e7], 'k-')
+    plt.xlabel('true')
+    plt.ylabel('pred')
+    plt.title('Scatterplot pred vs true energy output')
+    p = y_pred.ravel()
+    y = y_test.ravel()
+    mask = p > y
+    upper_mae = metrics.mean_absolute_error(y[mask], p[mask])
+    lower_mae = metrics.mean_absolute_error(y[~mask], p[~mask])
+    plt.text(0 * 4e7, 0.95 * 4e7, 'Upper MAE: %.0f' % upper_mae, fontsize=8)
+    plt.text(0.7 * 4e7, 0 * 4e7, 'Lower MAE: %.0f' % lower_mae, fontsize=8)
+
     plt.show()
