@@ -1001,7 +1001,9 @@ class KringingModel(BaseEstimator, RegressorMixin):
                                      ('ulwrf_sfc', '/', 'uswrf_sfc'),
                                      ('dlwrf_sfc', '/', 'dswrf_sfc'),
                                      ('tmax_2m', '-', 'tmin_2m'),
+                                     ('tmax_2m', '/', 'tmin_2m'),
                                      ('tmp_2m', '-', 'tmp_sfc'),
+                                     ('tmp_2m', '/', 'tmp_sfc'),
                                      ('apcp_sfc', '-', 'pwat_eatm'),
                                      ('apcp_sfc', '/', 'pwat_eatm'),
                                      ))

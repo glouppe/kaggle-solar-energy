@@ -127,7 +127,7 @@ def train_test(args):
 
     #est = RidgeCV(alphas=10. ** np.arange(-7, 1, 1), normalize=True)
     #est = Ridge(alpha=1e-5, normalize=True)
-    est = GradientBoostingRegressor(n_estimators=4000, verbose=2, max_depth=6,
+    est = GradientBoostingRegressor(n_estimators=2000, verbose=2, max_depth=6,
                                     min_samples_leaf=5, learning_rate=0.02,
                                     max_features=33, random_state=1,
                                     loss='lad')
@@ -179,7 +179,7 @@ def submit(args):
 
     X_test = data['X_test']
 
-    est = GradientBoostingRegressor(n_estimators=4000, verbose=2, max_depth=6,
+    est = GradientBoostingRegressor(n_estimators=2000, verbose=2, max_depth=6,
                                     min_samples_leaf=5, learning_rate=0.02,
                                     max_features=33, random_state=1,
                                     loss='lad')
