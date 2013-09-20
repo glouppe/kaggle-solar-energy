@@ -627,3 +627,70 @@ KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learn_rate=Non
 MAE:  1992978.34
 RMSE: 3099598.33
 R2: 0.84
+
+
+12.9.2013
+^^^^^^^^^
+
+We are 1st!
+
+Using such a model:
+
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learn_rate=None,
+             learning_rate=0.02, loss='lad', max_depth=6, max_features=33,
+             min_samples_leaf=5, min_samples_split=2, n_estimators=2000,
+             random_state=1, subsample=1.0, verbose=2),
+       intp_blocks=('nm_intp', 'nmft_intp'))
+
+it used additional combined features:
+('tmax_2m', '/', 'tmin_2m'),
+('tmp_2m', '/', 'tmp_sfc'),
+
+
+
+nugget and sigma
+^^^^^^^^^^^^^^^^
+
+I've compiled a new kriging interpolation dataset (interp3_data).
+I've used a nugget and added a sigma block.
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learn_rate=None,
+             learning_rate=0.05, loss='lad', max_depth=5, max_features=33,
+             min_samples_leaf=5, min_samples_split=2, n_estimators=1000,
+             random_state=1, subsample=1.0, verbose=2),
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'))
+MAE:  1987388.30
+RMSE: 3092370.68
+R2: 0.84
+
+w/o sigma (interp3_data)
+transform to shape:  (250586, 154)
+MAE:  1991869.97
+RMSE: 3101000.55
+R2: 0.84
+
+w/o nugget (interp2_data)
+MAE:  1994453.62
+RMSE: 3104850.79
+R2: 0.84
+--> nugget doesnt seem to help (used theta0=4)
+
+lets see how theta0=10 does...
+
+MAE:  1995353.69
+RMSE: 3105916.31
+R2: 0.84
+
+
+interp3_data run using sigma w/ hk4 config.
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learn_rate=None,
+             learning_rate=0.02, loss='lad', max_depth=6, max_features=33,
+             min_samples_leaf=5, min_samples_split=2, n_estimators=2000,
+             random_state=1, subsample=1.0, verbose=2),
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'))
+MAE:  1976538.92
+RMSE: 3080222.07
+R2: 0.84
+

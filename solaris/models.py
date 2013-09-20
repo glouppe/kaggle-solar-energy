@@ -965,7 +965,7 @@ class DBNModel(BaseEstimator, RegressorMixin):
 
 class KringingModel(BaseEstimator, RegressorMixin):
 
-    def __init__(self, est, intp_blocks=('nm_intp', 'nmft_intp')):
+    def __init__(self, est, intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma')):
         self.est = est
         self.intp_blocks = intp_blocks
 
@@ -990,9 +990,12 @@ class KringingModel(BaseEstimator, RegressorMixin):
         fx_names = []
         n_days = X_st.shape[0]
 
-        ## trans func
+        ## FIXME forgot feature names for nm_intp
         if 'nm_intp' not in X_st.fx_name:
             X_st.fx_name['nm_intp'] = X_st.fx_name['nm']
+        if 'nm_intp_sigma' not in X_st.fx_name:
+            X_st.fx_name['nm_intp_sigma'] = map(lambda s: '%s_sigma' % s,
+                                                X_st.fx_name['nm'])
 
         ft = FunctionTransformer(block='nm_intp', new_block='nmft_intp',
                                  ops=(
@@ -1045,18 +1048,6 @@ class KringingModel(BaseEstimator, RegressorMixin):
             X = X.reshape((np.prod(X.shape[:2]), np.prod(X.shape[2:])))
             out.append(X)
 
-        ## transform to mean features
-        # for b_name in ('nm_intp',):
-        #     X = X_st[b_name]
-        #     # swap features and station interpolations
-        #     X = np.swapaxes(X, 1, 3)
-        #     # n_day x n_stat x n_hour x n_fx
-        #     X = np.cumsum(X, axis=2)
-        #     fx_names.extend(['_'.join((b_name, fx, 'm'))
-        #                      for fx in X_st.fx_name[b_name]])
-        #     X = X.reshape((np.prod(X.shape[:2]), np.prod(X.shape[2:])))
-        #     out.append(X)
-
         out = np.hstack(out)
         self.fx_names_ = fx_names
         print 'transform to shape: ', out.shape
@@ -1067,4 +1058,5 @@ MODELS = {'baseline': Baseline,
           'ensemble': EnsembledRegressor,
           'dbn': DBNModel,
           'local': LocalModel,
-          'kringing': KringingModel}
+          'kringing': KringingModel,
+          'kriging': KringingModel}
