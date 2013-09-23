@@ -5,6 +5,7 @@ import IPython
 from time import time
 from collections import OrderedDict
 from scipy import signal
+from scipy import ndimage
 
 from sklearn.base import BaseEstimator
 from sklearn.base import RegressorMixin
@@ -34,6 +35,35 @@ class ValueTransformer(BaseEstimator, TransformerMixin):
         X = X.values()
         print('transform X to shape %s' % str(X.shape))
         return X
+
+
+class ResampleTransformer(BaseEstimator, TransformerMixin):
+
+    zoom = 0.25
+    order = 0
+
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X_st, y=None):
+        X_nm = X_st.nm[:, 0]
+        # mean ensemble
+        X_nm = np.mean(X_nm, axis=1)
+        # mean hour
+        X_nm = np.mean(X_nm, axis=1)
+        # X_nm.shape = (n_days, n_lat, l_lon)
+
+        n_days = X_nm.shape[0]
+        out = None
+        for i in range(n_days):
+            resampled_day = ndimage.interpolation.zoom(X_nm[i], self.zoom,
+                                                       self.order)
+            if out is None:
+                out = np.zeros((n_days,) + resampled_day.shape[1:],
+                               dtype=np.float32)
+            out[i] = resampled_day
+        X_st['nm_res'] = out
+        return X_st
 
 
 class FunctionTransformer(BaseEstimator, TransformerMixin):
@@ -965,12 +995,20 @@ class DBNModel(BaseEstimator, RegressorMixin):
 
 class KringingModel(BaseEstimator, RegressorMixin):
 
-    def __init__(self, est, intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma')):
+    def __init__(self, est, intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+                 with_enc=False):
         self.est = est
         self.intp_blocks = intp_blocks
+        self.with_enc = with_enc
 
     def fit(self, X_st, y):
         self.n_stations = y.shape[1]
+        if self.with_enc:
+            self.enc = EncoderTransformer(fx='dswrf_sfc', k=50,
+                                          reshape=True,
+                                          codebook='kmeans',
+                                          ens_mean=True)
+            self.enc.fit(X_st)
         X = self.transform(X_st)
         y = self.transform_labels(y)
         self.est.fit(X, y)
@@ -997,6 +1035,7 @@ class KringingModel(BaseEstimator, RegressorMixin):
             X_st.fx_name['nm_intp_sigma'] = map(lambda s: '%s_sigma' % s,
                                                 X_st.fx_name['nm'])
 
+        ## transform function
         ft = FunctionTransformer(block='nm_intp', new_block='nmft_intp',
                                  ops=(
                                      ('uswrf_sfc', '/', 'dswrf_sfc'),
@@ -1024,6 +1063,15 @@ class KringingModel(BaseEstimator, RegressorMixin):
         stinfo = np.tile(stinfo, (n_days, 1))
         out.append(stinfo)
         fx_names.extend(['lat', 'lon', 'elev'])
+
+        ## transform encoding
+        if self.with_enc:
+            X_st = self.enc.transform(X_st)
+            print 'Encoder transformer'
+            print X_st['nm_enc_dswrf_sfc'].shape
+            X_enc = np.repeat(X_st.nm_enc_dswrf_sfc, self.n_stations, axis=0)
+            out.append(X_enc)
+            fx_names.extend(['enc_%d' % i for i in range(X_enc.shape[1])])
 
         ## transform nm_intp to hourly features
         for b_name in self.intp_blocks:

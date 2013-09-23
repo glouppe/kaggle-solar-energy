@@ -127,9 +127,9 @@ def train_test(args):
 
     #est = RidgeCV(alphas=10. ** np.arange(-7, 1, 1), normalize=True)
     #est = Ridge(alpha=1e-5, normalize=True)
-    est = GradientBoostingRegressor(n_estimators=1000, verbose=2, max_depth=5,
-                                    min_samples_leaf=5, learning_rate=0.05,
-                                    max_features=33, random_state=1,
+    est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=6,
+                                    min_samples_leaf=5, learning_rate=0.01,
+                                    max_features=0.3, random_state=1,
                                     loss='lad')
 
     model_cls = MODELS[args['<model>']]
@@ -148,7 +148,7 @@ def train_test(args):
 
     t0 = time()
     model.fit(X_train, y_train)
-    print('model.fit took %.fm' % ((time() - t0) / 60.))
+    print('model.fit took %.8fm' % ((time() - t0) / 60.))
     pred = model.predict(X_test)
     if args['--scaley']:
         pred = scaler.inverse_transform(pred)
