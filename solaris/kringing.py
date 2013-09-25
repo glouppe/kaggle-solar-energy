@@ -5,6 +5,8 @@ This module implements kringing spatial interpolation.
 
 """
 import numpy as np
+import scipy
+
 from sklearn.base import TransformerMixin, BaseEstimator
 from sklearn.linear_model import Ridge
 from sklearn.gaussian_process import GaussianProcess
@@ -97,9 +99,20 @@ class Interpolate(TransformerMixin, BaseEstimator):
 class Kringing(Interpolate):
 
     est = GaussianProcess(corr='squared_exponential',
-                          theta0=5.0)
+                          theta0=(7.0, 3.0, 3.0))
     use_nugget = True
     use_mse = True
+
+
+class MultivariateNormal(object):
+
+    def __init__(self):
+        self.lat = scipy.stats.norm(loc=5, scale=1)
+        self.lon = scipy.stats.norm(loc=5, scale=1)
+        self.elev = scipy.stats.norm(loc=5, scale=1)
+
+    def rvs(self):
+        return np.array([self.lon.rvs(), self.lat.rvs(), self.elev.rvs()])
 
 
 def transform_data():
@@ -124,7 +137,7 @@ def transform_data():
 
     print
     print('dumping data')
-    joblib.dump(data, 'data/interp3_data.pkl')
+    joblib.dump(data, 'data/interp4_data.pkl')
 
 
 def benchmark():
@@ -156,7 +169,7 @@ def benchmark():
     nugget = nugget.ravel()[mask]
 
     print '_' * 80
-    est = GaussianProcess(corr='squared_exponential', theta0=4.0,
+    est = GaussianProcess(corr='squared_exponential', theta0=(7.0, 3.0, 3.0),
                           nugget=(nugget / y[mask]) ** 2.0)
     est.fit(x[mask], y[mask])
     pred = est.predict(x[~mask])
@@ -174,22 +187,32 @@ def benchmark():
         def __iter__(self):
             yield mask, ~mask
 
+        def __len__(self):
+            return 1
+
     est = Ridge()
     params = {'normalize': [True, False],
               'alpha': 10.0 ** np.arange(-7, 1, 1)}
     gs = grid_search.GridSearchCV(est, params, cv=KFold(),
-                                  loss_func=rmse).fit(x, y)
+                                  scoring='mean_squared_error').fit(x, y)
     print gs.grid_scores_
     print gs.best_score_
 
     est = GaussianProcess()
     params = {'corr': ['squared_exponential'],
-              #'regr': ['constant', 'linear', 'quadratic'],
-              'theta0': np.arange(4, 11),
-              }
+               'theta0': MultivariateNormal(),
+               }
 
-    gs = grid_search.GridSearchCV(est, params, cv=KFold(),
-                                  loss_func=rmse).fit(x, y)
+    ## params = {'corr': ['squared_exponential'],
+    ##           #'regr': ['constant', 'linear', 'quadratic'],
+    ##           'theta0': np.arange(4, 11),
+    ##           }
+
+    # gs = grid_search.GridSearchCV(est, params, cv=KFold(),
+    #                               loss_func=rmse).fit(x, y)
+    gs = grid_search.RandomizedSearchCV(est, params, cv=KFold(),
+                                        scoring='mean_squared_error',
+                                        n_iter=100).fit(x, y)
     print gs.grid_scores_
     print gs.best_params_
     print gs.best_score_

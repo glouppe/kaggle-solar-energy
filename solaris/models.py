@@ -41,6 +41,7 @@ class ResampleTransformer(BaseEstimator, TransformerMixin):
 
     zoom = 0.25
     order = 0
+    flatten = True
 
     def fit(self, X, y=None):
         return self
@@ -52,16 +53,18 @@ class ResampleTransformer(BaseEstimator, TransformerMixin):
         # mean hour
         X_nm = np.mean(X_nm, axis=1)
         # X_nm.shape = (n_days, n_lat, l_lon)
+        print X_nm.shape
 
         n_days = X_nm.shape[0]
         out = None
         for i in range(n_days):
-            resampled_day = ndimage.interpolation.zoom(X_nm[i], self.zoom,
-                                                       self.order)
+            resampled_day = ndimage.interpolation.zoom(X_nm[i], self.zoom)
             if out is None:
-                out = np.zeros((n_days,) + resampled_day.shape[1:],
+                out = np.zeros((n_days,) + resampled_day.shape,
                                dtype=np.float32)
             out[i] = resampled_day
+        if self.flatten:
+            out = out.reshape(out.shape[0], np.prod(out.shape[1:]))
         X_st['nm_res'] = out
         return X_st
 
@@ -229,9 +232,6 @@ class EncoderTransformer(BaseEstimator, TransformerMixin):
                                                   X_nm_tf.shape))
         X['nm_enc_%s' % self.fx] = X_nm_tf
         return X
-
-    def plot(self):
-        c = self.cb_.cluster_centers_
 
 
 class DateTransformer(BaseEstimator, TransformerMixin):
@@ -996,19 +996,18 @@ class DBNModel(BaseEstimator, RegressorMixin):
 class KringingModel(BaseEstimator, RegressorMixin):
 
     def __init__(self, est, intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
-                 with_enc=False):
+                 with_global=False, with_stationinfo=True):
         self.est = est
         self.intp_blocks = intp_blocks
-        self.with_enc = with_enc
+        self.with_global = with_global
+        self.with_stationinfo = with_stationinfo
 
     def fit(self, X_st, y):
         self.n_stations = y.shape[1]
-        if self.with_enc:
-            self.enc = EncoderTransformer(fx='dswrf_sfc', k=50,
-                                          reshape=True,
-                                          codebook='kmeans',
-                                          ens_mean=True)
-            self.enc.fit(X_st)
+        if self.with_global:
+            self.rs_tf = ResampleTransformer()
+            self.rs_tf.fit(X_st)
+
         X = self.transform(X_st)
         y = self.transform_labels(y)
         self.est.fit(X, y)
@@ -1059,19 +1058,20 @@ class KringingModel(BaseEstimator, RegressorMixin):
         fx_names.append('doy')
 
         # ## transform station-info
-        stinfo = X_st.station_info
-        stinfo = np.tile(stinfo, (n_days, 1))
-        out.append(stinfo)
-        fx_names.extend(['lat', 'lon', 'elev'])
+        if self.with_stationinfo:
+            stinfo = X_st.station_info
+            stinfo = np.tile(stinfo, (n_days, 1))
+            out.append(stinfo)
+            fx_names.extend(['lat', 'lon', 'elev'])
 
         ## transform encoding
-        if self.with_enc:
-            X_st = self.enc.transform(X_st)
-            print 'Encoder transformer'
-            print X_st['nm_enc_dswrf_sfc'].shape
-            X_enc = np.repeat(X_st.nm_enc_dswrf_sfc, self.n_stations, axis=0)
-            out.append(X_enc)
-            fx_names.extend(['enc_%d' % i for i in range(X_enc.shape[1])])
+        if self.with_global:
+            X_st = self.rs_tf.transform(X_st)
+            print 'ResampleTransformer'
+            print X_st['nm_res'].shape
+            X_res = np.repeat(X_st.nm_res, self.n_stations, axis=0)
+            out.append(X_res)
+            fx_names.extend(['res_%d' % i for i in range(X_res.shape[1])])
 
         ## transform nm_intp to hourly features
         for b_name in self.intp_blocks:

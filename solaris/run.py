@@ -53,7 +53,7 @@ from .err_analysis import err_analysis
 
 
 def load_data():
-    data = joblib.load('data/interp3_data.pkl', mmap_mode='r')
+    data = joblib.load('data/interp4_data.pkl', mmap_mode='r')
     return data
 
 
@@ -126,10 +126,22 @@ def train_test(args):
     X_test, y_test = X[offset:], y[offset:]
 
     #est = RidgeCV(alphas=10. ** np.arange(-7, 1, 1), normalize=True)
-    #est = Ridge(alpha=1e-5, normalize=True)
-    est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=6,
-                                    min_samples_leaf=5, learning_rate=0.01,
-                                    max_features=0.3, random_state=1,
+
+    class Wrapper(object):
+
+        def __init__(self, est):
+            self.est = est
+
+        def fit(self, X, y):
+            self.est.fit(X, y)
+            return self
+
+        def predict(self, X):
+            return self.est.predict(X)[:, np.newaxis]
+
+    est = GradientBoostingRegressor(n_estimators=1000, verbose=1, max_depth=6,
+                                    min_samples_leaf=5, learning_rate=0.02,
+                                    max_features=0.5, random_state=1,
                                     loss='lad')
 
     model_cls = MODELS[args['<model>']]
@@ -210,7 +222,7 @@ def submit(args):
     stid = pd.read_csv('data/station_info.csv')['stid']
     out = pd.DataFrame(index=date_idx, columns=stid, data=pred)
     out.index.name = 'Date'
-    out.to_csv('hk_5.csv')
+    out.to_csv('hk_6.csv')
     import IPython
     IPython.embed()
 

@@ -694,3 +694,41 @@ MAE:  1976538.92
 RMSE: 3080222.07
 R2: 0.84
 
+
+
+25.9.2013
+^^^^^^^^^
+
+Experimented w/ different max_features values
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02,
+             loss='lad', max_depth=6, max_features=0.3, min_samples_leaf=5,
+             min_samples_split=2, n_estimators=1000, random_state=1,
+             subsample=1.0, verbose=1),
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_global=False, with_stationinfo=True)
+MAE:  1983762.13
+RMSE: 3095486.37
+R2: 0.84
+
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02,
+             loss='lad', max_depth=6, max_features=0.2, min_samples_leaf=5,
+             min_samples_split=2, n_estimators=1000, random_state=1,
+             subsample=1.0, verbose=1),
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_global=False, with_stationinfo=True)
+MAE:  1981673.17  <-- best!
+RMSE: 3095142.36
+R2: 0.84
+
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02,
+             loss='lad', max_depth=6, max_features=0.5, min_samples_leaf=5,
+             min_samples_split=2, n_estimators=1000, random_state=1,
+             subsample=1.0, verbose=1),
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_global=False, with_stationinfo=True)
+MAE:  1986963.00
+RMSE: 3099572.10
+R2: 0.84
