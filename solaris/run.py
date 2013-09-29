@@ -32,6 +32,7 @@ from sklearn.feature_selection import RFE
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.dummy import DummyRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn import cross_validation
@@ -126,26 +127,16 @@ def train_test(args):
     X_test, y_test = X[offset:], y[offset:]
 
     #est = RidgeCV(alphas=10. ** np.arange(-7, 1, 1), normalize=True)
-
-    class Wrapper(object):
-
-        def __init__(self, est):
-            self.est = est
-
-        def fit(self, X, y):
-            self.est.fit(X, y)
-            return self
-
-        def predict(self, X):
-            return self.est.predict(X)[:, np.newaxis]
-
     est = GradientBoostingRegressor(n_estimators=1000, verbose=1, max_depth=6,
                                     min_samples_leaf=5, learning_rate=0.02,
-                                    max_features=0.5, random_state=1,
+                                    max_features=33, random_state=1,
                                     loss='lad')
 
     model_cls = MODELS[args['<model>']]
-    model = model_cls(est=est)
+    model = model_cls(est=est, with_stationinfo=True,
+                      #intp_blocks=('nm_intp', 'nmft_intp'),
+                      with_date=True, with_solar=False,
+                      with_modmask=True)
 
     print('_' * 80)
     print('Train-test')
@@ -190,13 +181,15 @@ def submit(args):
 
     X_test = data['X_test']
 
-    est = GradientBoostingRegressor(n_estimators=2000, verbose=2, max_depth=6,
+    est = GradientBoostingRegressor(n_estimators=3000, verbose=2, max_depth=7,
                                     min_samples_leaf=5, learning_rate=0.02,
-                                    max_features=33, random_state=1,
+                                    max_features=20, random_state=1,
                                     loss='lad')
 
     model_cls = MODELS[args['<model>']]
-    model = model_cls(est=est)
+
+    model = model_cls(est=est, with_stationinfo=True,
+                      with_date=True, with_solar=False)
 
     print('_' * 80)
     print('Submit')
@@ -222,7 +215,7 @@ def submit(args):
     stid = pd.read_csv('data/station_info.csv')['stid']
     out = pd.DataFrame(index=date_idx, columns=stid, data=pred)
     out.index.name = 'Date'
-    out.to_csv('hk_6.csv')
+    out.to_csv('hk_8.csv')
     import IPython
     IPython.embed()
 

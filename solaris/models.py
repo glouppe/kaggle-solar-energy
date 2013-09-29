@@ -273,6 +273,36 @@ class DateTransformer(BaseEstimator, TransformerMixin):
         return X
 
 
+class SolarTransformer(BaseEstimator, TransformerMixin):
+    """Compute varios solar features (sun rise, azimuth). """
+
+    def __init__(self, ops=None):
+        self.ops = ops
+
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X, y=None):
+        import pytz
+        from . import sun
+        date = X.date.tz_localize(pytz.utc)
+        jds = X.date.map(sun.getJD)
+
+        sun_riseset = sun.vec_sunriseset(jds, X.station_info[:, :2])
+        X['sun_riseset'] = sun_riseset
+        X.fx_name['sun_riseset'] = ['sunrise', 'sunset']
+
+        # sun_noon = sun.vec_solnoon(jds, X.station_info[:, 1])
+        # X['sun_noon'] = sun_noon[:, np.newaxis]
+        # X.fx_name['sun_noon'] = ['sun_noon']
+
+        # stuff, stuff_names = sun.calc_solar_stuff(jds)
+        # X['sun_stuff'] = stuff
+        # X.fx_name['sun_stuff'] = stuff_names
+
+        return X
+
+
 class DelBlockTransformer(BaseEstimator, TransformerMixin):
 
     def __init__(self, rm_lst=None):
@@ -996,11 +1026,15 @@ class DBNModel(BaseEstimator, RegressorMixin):
 class KringingModel(BaseEstimator, RegressorMixin):
 
     def __init__(self, est, intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
-                 with_global=False, with_stationinfo=True):
+                 with_global=False, with_stationinfo=True, with_date=True,
+                 with_solar=False, with_modmask=False):
         self.est = est
         self.intp_blocks = intp_blocks
         self.with_global = with_global
         self.with_stationinfo = with_stationinfo
+        self.with_date = with_date
+        self.with_solar = with_solar
+        self.with_modmask = with_modmask
 
     def fit(self, X_st, y):
         self.n_stations = y.shape[1]
@@ -1010,6 +1044,13 @@ class KringingModel(BaseEstimator, RegressorMixin):
 
         X = self.transform(X_st)
         y = self.transform_labels(y)
+
+        if self.with_modmask:
+            mask = (y % 100.0) > 0.0
+            print('modmask: %d' % mask.sum())
+            y = y[~mask]
+            X = X[~mask]
+
         self.est.fit(X, y)
         return self
 
@@ -1050,12 +1091,38 @@ class KringingModel(BaseEstimator, RegressorMixin):
                                      ))
         X_st = ft.transform(X_st)
 
+        if self.with_solar:
+            solar_tf = SolarTransformer()
+            X_st = solar_tf.transform(X_st)
+
+            # sun rise sun set
+            sun_riseset = X_st['sun_riseset']
+            sun_riseset = sun_riseset.reshape((n_days * self.n_stations, 2))
+
+            out.append(sun_riseset)
+            fx_names.extend(X_st.fx_name['sun_riseset'])
+            out.append((sun_riseset[:, 1] - sun_riseset[:, 0])[:, np.newaxis])
+            fx_names.append('delta_sunrise_sunset')
+
+            # sun noon
+            # sun_noon = X_st['sun_noon']
+            # sun_noon = sun_noon.reshape((n_days * self.n_stations, 1))
+            # out.append(sun_noon)
+            # fx_names.extend(X_st.fx_name['sun_noon'])
+
+            # stuff = X_st['sun_stuff']
+            # stuff = np.repeat(stuff, self.n_stations, axis=0)
+            # out.append(stuff[:, np.newaxis])
+            # print out[-1].shape
+            # fx_names.extend(X_st.fx_name['sun_stuff'])
+
         ## transform date
-        date_tf = DateTransformer('doy')
-        X_st = date_tf.transform(X_st)
-        date = np.repeat(X_st.date, self.n_stations)[:, np.newaxis]
-        out.append(date)
-        fx_names.append('doy')
+        if self.with_date:
+            date_tf = DateTransformer('doy')
+            X_st = date_tf.transform(X_st)
+            date = np.repeat(X_st.date, self.n_stations)[:, np.newaxis]
+            out.append(date)
+            fx_names.append('doy')
 
         # ## transform station-info
         if self.with_stationinfo:

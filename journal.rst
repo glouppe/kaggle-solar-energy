@@ -718,7 +718,7 @@ KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=
              subsample=1.0, verbose=1),
        intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
        with_global=False, with_stationinfo=True)
-MAE:  1981673.17  <-- best!
+MAE:  1981673.17  <-- best! (~48 fx)
 RMSE: 3095142.36
 R2: 0.84
 
@@ -732,3 +732,45 @@ KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=
 MAE:  1986963.00
 RMSE: 3099572.10
 R2: 0.84
+
+
+0.13.1 vs. gbrt-enh
+
+1981805.33 vs 1981866.25
+157.12625185m vs 180.15761642m
+
+
+28.9.2013
+^^^^^^^^^
+
+incorporate solar features:
+
+  - time diff between sun rise and sun set
+  - time of sun rise and sun set
+  - time of solar zenith
+  - solar azimuth at zenith
+  - solar declination at zenith
+  - solar declination at sun rise
+  - solar declination at sun set
+  - distance between earth and sun
+
+
+197 is the mark to beat!
+
+
+29.9.2013
+^^^^^^^^^
+
+HK8
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02,
+             loss='lad', max_depth=7, max_features=20, min_samples_leaf=5,
+             min_samples_split=2, n_estimators=3000, random_state=1,
+             subsample=1.0, verbose=2),
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_date=True, with_global=False, with_solar=False,
+       with_stationinfo=True)
+3000     1597973.1374
+
+
+LB MAE 1945755.78
