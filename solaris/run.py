@@ -47,7 +47,7 @@ from .models import PipelineModel
 from .models import ValueTransformer
 from .models import IndividualEstimator
 from .err_analysis import err_analysis
-
+from . import util
 
 # mae_score = metrics.make_scorer(metrics.mean_absolute_error,
 #                                 greater_is_better=True)
@@ -127,16 +127,15 @@ def train_test(args):
     X_test, y_test = X[offset:], y[offset:]
 
     #est = RidgeCV(alphas=10. ** np.arange(-7, 1, 1), normalize=True)
-    est = GradientBoostingRegressor(n_estimators=1000, verbose=1, max_depth=6,
+    est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=6,
                                     min_samples_leaf=5, learning_rate=0.02,
-                                    max_features=33, random_state=1,
+                                    max_features=35, random_state=1,
                                     loss='lad')
 
     model_cls = MODELS[args['<model>']]
-    model = model_cls(est=est, with_stationinfo=True,
-                      #intp_blocks=('nm_intp', 'nmft_intp'),
+    model = model_cls(est=est, with_stationinfo=False,
                       with_date=True, with_solar=False,
-                      with_modmask=True)
+                      with_mask=True, with_stationid=False)
 
     print('_' * 80)
     print('Train-test')
@@ -156,9 +155,14 @@ def train_test(args):
     if args['--scaley']:
         pred = scaler.inverse_transform(pred)
 
-    print("MAE:  %0.2f" % metrics.mean_absolute_error(y_test, pred))
-    print("RMSE: %0.2f" % np.sqrt(metrics.mean_squared_error(y_test, pred)))
-    print("R2: %0.2f" % metrics.r2_score(y_test, pred))
+    # FIXME clean ytest
+    mask = util.clean_missing_labels(y_test)
+    pred_ = pred.ravel()[~mask.ravel()]
+    y_test_ = y_test.ravel()[~mask.ravel()]
+
+    print("MAE:  %0.2f" % metrics.mean_absolute_error(y_test_, pred_))
+    print("RMSE: %0.2f" % np.sqrt(metrics.mean_squared_error(y_test_, pred_)))
+    print("R2: %0.2f" % metrics.r2_score(y_test_, pred_))
 
     if args['--err-analysis']:
         # reread test data because has been transformed inplace
@@ -181,9 +185,9 @@ def submit(args):
 
     X_test = data['X_test']
 
-    est = GradientBoostingRegressor(n_estimators=3000, verbose=2, max_depth=7,
+    est = GradientBoostingRegressor(n_estimators=3000, verbose=2, max_depth=6,
                                     min_samples_leaf=5, learning_rate=0.02,
-                                    max_features=20, random_state=1,
+                                    max_features=33, random_state=3,
                                     loss='lad')
 
     model_cls = MODELS[args['<model>']]
@@ -215,7 +219,7 @@ def submit(args):
     stid = pd.read_csv('data/station_info.csv')['stid']
     out = pd.DataFrame(index=date_idx, columns=stid, data=pred)
     out.index.name = 'Date'
-    out.to_csv('hk_8.csv')
+    out.to_csv('hk_9.csv')
     import IPython
     IPython.embed()
 

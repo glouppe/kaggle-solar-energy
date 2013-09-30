@@ -774,3 +774,88 @@ KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=
 
 
 LB MAE 1945755.78
+
+
+30.8.2013
+^^^^^^^^^^
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02, loss=lad,
+             max_depth=6, max_features=35, min_samples_leaf=5,
+             min_samples_split=2, n_estimators=2000, random_state=1,
+             subsample=1.0, verbose=1),
+       est__alpha=0.9, est__init=None, est__learning_rate=0.02,
+       est__loss=lad, est__max_depth=6, est__max_features=35,
+       est__min_samples_leaf=5, est__min_samples_split=2,
+       est__n_estimators=2000, est__random_state=1, est__subsample=1.0,
+       est__verbose=1,
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_date=True, with_global=False, with_modmask=False,
+       with_solar=False, with_stationid=False, with_stationinfo=False)
+MAE:  1971259.05
+RMSE: 3074536.46
+R2: 0.84
+
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02, loss=lad,
+             max_depth=6, max_features=35, min_samples_leaf=5,
+             min_samples_split=2, n_estimators=2000, random_state=1,
+             subsample=1.0, verbose=1),
+       est__alpha=0.9, est__init=None, est__learning_rate=0.02,
+       est__loss=lad, est__max_depth=6, est__max_features=35,
+       est__min_samples_leaf=5, est__min_samples_split=2,
+       est__n_estimators=2000, est__random_state=1, est__subsample=1.0,
+       est__verbose=1,
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_date=True, with_global=False, with_modmask=True,
+       with_solar=True, with_stationinfo=True)
+MAE:  1973942.98
+RMSE: 3079900.70
+R2: 0.84
+
+try solar + modmask but w/o station_info
+
+
+
+Mask imputed values
+^^^^^^^^^^^^^^^^^^^
+
+The organizeres imputed missing values either by forward filling or
+by NN interpolation.
+Seems like forward filling created some artefacts that have influence
+on the model (see errors of station 78)
+
+I now mask forward filled values and imputed values during model training
+and model selection.
+It seems that my Held-out errors are now pretty much correlated with the LB error.
+In the held-out set there are 1660 masked values.
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02,
+             loss='lad', max_depth=6, max_features=30, min_samples_leaf=5,
+             min_samples_split=2, n_estimators=2000, random_state=1,
+             subsample=1.0, verbose=1),
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_date=True, with_global=False, with_modmask=True,
+       with_solar=True, with_stationid=False, with_stationinfo=True)
+
+MAE:  1933678.49
+RMSE: 2977558.93
+
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02,
+             loss='lad', max_depth=6, max_features=35, min_samples_leaf=5,
+             min_samples_split=2, n_estimators=2000, random_state=1,
+             subsample=1.0, verbose=1),
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_date=True, with_global=False, with_mask=True, with_solar=False,
+       with_stationid=False, with_stationinfo=False)
+MAE:  1930890.54
+RMSE: 2977140.46
+R2: 0.85
+
+
+w/ 1000 more trees
+MAE:  1928320.38
+RMSE: 2969441.32
+R2: 0.86
+
+

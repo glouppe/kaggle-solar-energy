@@ -20,9 +20,8 @@ from sklearn.mixture import GMM
 from sklearn.random_projection import GaussianRandomProjection
 
 
-from nolearn.dbn import DBN
-
 from .sa import StructuredArray
+from . import util
 
 
 class ValueTransformer(BaseEstimator, TransformerMixin):
@@ -283,10 +282,8 @@ class SolarTransformer(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X, y=None):
-        import pytz
         from . import sun
-        date = X.date.tz_localize(pytz.utc)
-        jds = X.date.map(sun.getJD)
+        jds = X.date.map(sun.get_jd2)
 
         sun_riseset = sun.vec_sunriseset(jds, X.station_info[:, :2])
         X['sun_riseset'] = sun_riseset
@@ -928,6 +925,8 @@ class DBNRegressor(BaseEstimator, RegressorMixin):
         self.nesterov = nesterov
 
     def fit(self, X, y, X_pretrain=None):
+        from nolearn.dbn import DBN
+
         if y.ndim == 2:
             n_outputs = y.shape[1]
         else:
@@ -1027,14 +1026,16 @@ class KringingModel(BaseEstimator, RegressorMixin):
 
     def __init__(self, est, intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
                  with_global=False, with_stationinfo=True, with_date=True,
-                 with_solar=False, with_modmask=False):
+                 with_solar=False, with_mask=False,
+                 with_stationid=False):
         self.est = est
         self.intp_blocks = intp_blocks
         self.with_global = with_global
         self.with_stationinfo = with_stationinfo
         self.with_date = with_date
         self.with_solar = with_solar
-        self.with_modmask = with_modmask
+        self.with_mask = with_mask
+        self.with_stationid = with_stationid
 
     def fit(self, X_st, y):
         self.n_stations = y.shape[1]
@@ -1042,12 +1043,21 @@ class KringingModel(BaseEstimator, RegressorMixin):
             self.rs_tf = ResampleTransformer()
             self.rs_tf.fit(X_st)
 
+        if self.with_stationid:
+            stid = np.arange(98)
+            self.stid_lb = LabelBinarizer()
+            self.stid_lb.fit(stid)
+
+        mask = None
+        if self.with_mask:
+            mask = util.clean_missing_labels(y)
+
         X = self.transform(X_st)
         y = self.transform_labels(y)
 
-        if self.with_modmask:
-            mask = (y % 100.0) > 0.0
-            print('modmask: %d' % mask.sum())
+        if mask is not None:
+            mask = self.transform_labels(mask)
+            print('remove masked samples: %d' % mask.sum())
             y = y[~mask]
             X = X[~mask]
 
@@ -1091,6 +1101,12 @@ class KringingModel(BaseEstimator, RegressorMixin):
                                      ))
         X_st = ft.transform(X_st)
 
+        if self.with_stationid:
+            stid = np.tile(self.stid_lb.classes_, n_days)
+            stid_enc = self.stid_lb.transform(stid)
+            out.append(stid_enc)
+            fx_names.extend(['stid_%d' % c for c in self.stid_lb.classes_])
+
         if self.with_solar:
             solar_tf = SolarTransformer()
             X_st = solar_tf.transform(X_st)
@@ -1099,8 +1115,8 @@ class KringingModel(BaseEstimator, RegressorMixin):
             sun_riseset = X_st['sun_riseset']
             sun_riseset = sun_riseset.reshape((n_days * self.n_stations, 2))
 
-            out.append(sun_riseset)
-            fx_names.extend(X_st.fx_name['sun_riseset'])
+            #out.append(sun_riseset)
+            #fx_names.extend(X_st.fx_name['sun_riseset'])
             out.append((sun_riseset[:, 1] - sun_riseset[:, 0])[:, np.newaxis])
             fx_names.append('delta_sunrise_sunset')
 
