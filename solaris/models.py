@@ -1143,6 +1143,8 @@ class KringingModel(BaseEstimator, RegressorMixin):
         # ## transform station-info
         if self.with_stationinfo:
             stinfo = X_st.station_info
+            # add station id as col
+            #stinfo = np.c_[stinfo, np.arange(X_st.station_info.shape[0])]
             stinfo = np.tile(stinfo, (n_days, 1))
             out.append(stinfo)
             fx_names.extend(['lat', 'lon', 'elev'])

@@ -859,3 +859,112 @@ RMSE: 2969441.32
 R2: 0.86
 
 
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02,
+             loss='lad', max_depth=8, max_features=20, min_samples_leaf=7,
+             min_samples_split=2, n_estimators=2000, random_state=1,
+             subsample=1.0, verbose=1),
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_date=True, with_global=False, with_mask=True, with_solar=False,
+       with_stationid=False, with_stationinfo=True)
+## -- End pasted text --
+MAE:  1928355.45
+RMSE: 2956186.89
+R2: 0.86
+
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02, loss=lad,
+             max_depth=8, max_features=20, min_samples_leaf=5,
+             min_samples_split=2, n_estimators=2000, random_state=1,
+             subsample=1.0, verbose=1),
+       est__alpha=0.9, est__init=None, est__learning_rate=0.02,
+       est__loss=lad, est__max_depth=8, est__max_features=20,
+       est__min_samples_leaf=5, est__min_samples_split=2,
+       est__n_estimators=2000, est__random_state=1, est__subsample=1.0,
+       est__verbose=1,
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_date=True, with_global=False, with_mask=True, with_solar=False,
+       with_stationid=False, with_stationinfo=False)
+MAE:  1927722.99
+RMSE: 2958614.68
+R2: 0.86
+
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02, loss=lad,
+             max_depth=6, max_features=35, min_samples_leaf=5,
+             min_samples_split=2, n_estimators=2000, random_state=1,
+             subsample=1.0, verbose=1),
+       est__alpha=0.9, est__init=None, est__learning_rate=0.02,
+       est__loss=lad, est__max_depth=6, est__max_features=35,
+       est__min_samples_leaf=5, est__min_samples_split=2,
+       est__n_estimators=2000, est__random_state=1, est__subsample=1.0,
+       est__verbose=1,
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_date=True, with_global=False, with_mask=True, with_solar=False,
+       with_stationid=False, with_stationinfo=True)
+MAE:  1930506.85
+RMSE: 2975641.68
+R2: 0.85
+
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02, loss=lad,
+             max_depth=6, max_features=35, min_samples_leaf=9,
+             min_samples_split=2, n_estimators=2000, random_state=1,
+             subsample=1.0, verbose=1),
+       est__alpha=0.9, est__init=None, est__learning_rate=0.02,
+       est__loss=lad, est__max_depth=6, est__max_features=35,
+       est__min_samples_leaf=9, est__min_samples_split=2,
+       est__n_estimators=2000, est__random_state=1, est__subsample=1.0,
+       est__verbose=1,
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_date=True, with_global=False, with_mask=True, with_solar=False,
+       with_stationid=False, with_stationinfo=False)
+MAE:  1927897.01
+RMSE: 2972463.40
+R2: 0.85
+
+
+1.10.2013
+^^^^^^^^^
+
+ran with_stationinfo=False, with_solar=True
+    intp_blocks=('nm_intp', 'nmft_intp',)
+    min_samples_leaf=11,
+    max_depth=9,
+    n_estimators=500
+1940000.00
+
+-> try with sigmas and
+
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02, loss=lad,
+             max_depth=9, max_features=20, min_samples_leaf=11,
+             min_samples_split=2, n_estimators=2000, random_state=1,
+             subsample=1.0, verbose=1),
+       est__alpha=0.9, est__init=None, est__learning_rate=0.02,
+       est__loss=lad, est__max_depth=9, est__max_features=20,
+       est__min_samples_leaf=11, est__min_samples_split=2,
+       est__n_estimators=2000, est__random_state=1, est__subsample=1.0,
+       est__verbose=1,
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_date=True, with_global=False, with_mask=True, with_solar=True,
+       with_stationid=False, with_stationinfo=False)
+MAE:  1928053.61
+RMSE: 2954749.64
+R2: 0.86
+
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02, loss=lad,
+             max_depth=9, max_features=20, min_samples_leaf=11,
+             min_samples_split=2, n_estimators=2000, random_state=1,
+             subsample=1.0, verbose=1),
+       est__alpha=0.9, est__init=None, est__learning_rate=0.02,
+       est__loss=lad, est__max_depth=9, est__max_features=20,
+       est__min_samples_leaf=11, est__min_samples_split=2,
+       est__n_estimators=2000, est__random_state=1, est__subsample=1.0,
+       est__verbose=1, intp_blocks=('nm_intp', 'nmft_intp'),
+       with_date=True, with_global=False, with_mask=True, with_solar=True,
+       with_stationid=False, with_stationinfo=False)
+MAE:  1932251.64
+RMSE: 2958229.46
+R2: 0.86

@@ -82,13 +82,17 @@ def err_analysis(y_pred, y_test=None, X_test=None, station_info=None, date=None)
 
     # # plot true-pred correlation
     plt.figure()
-    plt.scatter(y_test.ravel(), y_pred.ravel(), s=4)
+    p = y_pred.ravel()
+    y = y_test.ravel()
+    isfinite = np.isfinite(y)
+    p = p[isfinite]
+    y = y[isfinite]
+    plt.scatter(y, p, s=4)
     plt.plot([0.0, 4e7], [0.0, 4e7], 'k-')
     plt.xlabel('true')
     plt.ylabel('pred')
     plt.title('Scatterplot pred vs true energy output')
-    p = y_pred.ravel()
-    y = y_test.ravel()
+
     mask = p > y
     upper_mae = metrics.mean_absolute_error(y[mask], p[mask])
     lower_mae = metrics.mean_absolute_error(y[~mask], p[~mask])
