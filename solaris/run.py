@@ -186,17 +186,15 @@ def submit(args):
 
     X_test = data['X_test']
 
-    est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=9,
-                                    min_samples_leaf=11, learning_rate=0.02,
-                                    max_features=20, random_state=1,
+    est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=6,
+                                    min_samples_leaf=9, learning_rate=0.02,
+                                    max_features=33, random_state=1,
                                     loss='lad')
 
     model_cls = MODELS[args['<model>']]
-    model = model_cls(est=est, with_stationinfo=False,
+    model = model_cls(est=est, with_stationinfo=True,
                       with_date=True, with_solar=True,
-                      with_mask=True,
-                      #intp_blocks=('nm_intp', 'nmft_intp', ),
-                      )
+                      with_mask=True)
 
     print('_' * 80)
     print('Submit')
@@ -222,7 +220,7 @@ def submit(args):
     stid = pd.read_csv('data/station_info.csv')['stid']
     out = pd.DataFrame(index=date_idx, columns=stid, data=pred)
     out.index.name = 'Date'
-    out.to_csv('hk_9.csv')
+    out.to_csv('hk_10.csv')
     import IPython
     IPython.embed()
 
