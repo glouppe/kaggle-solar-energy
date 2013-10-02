@@ -127,16 +127,15 @@ def train_test(args):
     X_test, y_test = X[offset:], y[offset:]
 
     #est = RidgeCV(alphas=10. ** np.arange(-7, 1, 1), normalize=True)
-    est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=9,
-                                    min_samples_leaf=11, learning_rate=0.02,
-                                    max_features=20, random_state=1,
+    est = GradientBoostingRegressor(n_estimators=1000, verbose=1, max_depth=6,
+                                    min_samples_leaf=9, learning_rate=0.03,
+                                    max_features=30, random_state=1,
                                     loss='lad')
 
     model_cls = MODELS[args['<model>']]
     model = model_cls(est=est, with_stationinfo=False,
                       with_date=True, with_solar=True,
-                      with_mask=True,
-                      #intp_blocks=('nm_intp', 'nmft_intp', ),
+                      with_mask=True, with_stationid=True,
                       )
 
     print('_' * 80)

@@ -952,6 +952,7 @@ KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=
 MAE:  1928053.61
 RMSE: 2954749.64
 R2: 0.86
+-> this completely sucked when submitting a run
 
 
 KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02, loss=lad,
@@ -968,3 +969,57 @@ KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=
 MAE:  1932251.64
 RMSE: 2958229.46
 R2: 0.86
+
+
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02, loss=lad,
+             max_depth=5, max_features=30, min_samples_leaf=9,
+             min_samples_split=2, n_estimators=1000, random_state=1,
+             subsample=1.0, verbose=1),
+       est__alpha=0.9, est__init=None, est__learning_rate=0.02,
+       est__loss=lad, est__max_depth=5, est__max_features=30,
+       est__min_samples_leaf=9, est__min_samples_split=2,
+       est__n_estimators=1000, est__random_state=1, est__subsample=1.0,
+       est__verbose=1,
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_date=True, with_global=False, with_mask=True, with_solar=True,
+       with_stationid=True, with_stationinfo=False)
+MAE:  1970857.95
+RMSE: 3048997.37
+R2: 0.85
+
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.03, loss=lad,
+             max_depth=6, max_features=30, min_samples_leaf=9,
+             min_samples_split=2, n_estimators=1000, random_state=1,
+             subsample=1.0, verbose=1),
+       est__alpha=0.9, est__init=None, est__learning_rate=0.03,
+       est__loss=lad, est__max_depth=6, est__max_features=30,
+       est__min_samples_leaf=9, est__min_samples_split=2,
+       est__n_estimators=1000, est__random_state=1, est__subsample=1.0,
+       est__verbose=1,
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_date=True, with_global=False, with_mask=True, with_solar=True,
+       with_stationid=True, with_stationinfo=False)
+MAE:  1950827.00
+RMSE: 3003724.22
+R2: 0.85
+
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.04, loss=lad,
+             max_depth=6, max_features=30, min_samples_leaf=9,
+             min_samples_split=2, n_estimators=1000, random_state=1,
+             subsample=1.0, verbose=1),
+       est__alpha=0.9, est__init=None, est__learning_rate=0.04,
+       est__loss=lad, est__max_depth=6, est__max_features=30,
+       est__min_samples_leaf=9, est__min_samples_split=2,
+       est__n_estimators=1000, est__random_state=1, est__subsample=1.0,
+       est__verbose=1,
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_date=True, with_global=False, with_mask=True, with_solar=True,
+       with_stationid=True, with_stationinfo=False)
+MAE:  1949369.81
+RMSE: 2995704.82
+R2: 0.85
+<- station id gave tiny increase
+

@@ -119,7 +119,13 @@ class FunctionTransformer(BaseEstimator, TransformerMixin):
                 vals = (X[block_name][:, i] /
                         X[block_name][:, j])
                 # might be infs in there
-                vals[~np.isfinite(vals)] = 0.0
+                # vals[~np.isfinite(vals)] = 0.0
+                # if both are zero then 0 else large number
+                mask_j = X[block_name][:, j] == 0.0
+                mask_i = X[block_name][:, i] == 0.0
+                vals[np.logical_and(mask_i, mask_j)] = 0.0
+                vals[np.logical_and(~mask_i, mask_j)] = 1e15
+
             elif op == '-':
                 i = X.fx_name[block_name].index(left)
                 j = X.fx_name[block_name].index(right)
