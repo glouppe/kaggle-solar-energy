@@ -54,7 +54,7 @@ from . import util
 
 
 def load_data():
-    data = joblib.load('data/interp4_data.pkl', mmap_mode='r')
+    data = joblib.load('data/interp5_data.pkl', mmap_mode='r')
     return data
 
 
@@ -127,15 +127,15 @@ def train_test(args):
     X_test, y_test = X[offset:], y[offset:]
 
     #est = RidgeCV(alphas=10. ** np.arange(-7, 1, 1), normalize=True)
-    est = GradientBoostingRegressor(n_estimators=1000, verbose=1, max_depth=6,
-                                    min_samples_leaf=9, learning_rate=0.03,
-                                    max_features=30, random_state=1,
+    est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=6,
+                                    min_samples_leaf=5, learning_rate=0.02,
+                                    max_features=25, random_state=1,
                                     loss='lad')
 
     model_cls = MODELS[args['<model>']]
-    model = model_cls(est=est, with_stationinfo=False,
-                      with_date=True, with_solar=True,
-                      with_mask=True, with_stationid=True,
+    model = model_cls(est=est, with_stationinfo=True,
+                      with_date=True, with_solar=False,
+                      with_mask=True, with_stationid=False,
                       )
 
     print('_' * 80)
@@ -168,7 +168,7 @@ def train_test(args):
     if args['--err-analysis']:
         # reread test data because has been transformed inplace
         X_test, y_test = X[offset:], y[offset:]
-        err_analysis(pred, y_test, X_test=X_test)
+        err_analysis(pred, y_test, X_test=X_test, mask=mask)
 
     import IPython
     IPython.embed()

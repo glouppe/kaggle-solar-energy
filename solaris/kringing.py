@@ -4,6 +4,8 @@ This module implements kringing spatial interpolation.
 
 
 """
+import sys
+from time import time
 import numpy as np
 import scipy
 
@@ -55,39 +57,29 @@ class Interpolate(TransformerMixin, BaseEstimator):
 
         X_nm = X.nm
         n_days, n_fx, n_ens, n_hour, n_lat, n_lon = X_nm.shape
-        X_nm_std = X_nm.std(axis=2)
-        X_nm_m = X_nm.mean(axis=2)
-        if self.use_nugget:
-            from sklearn.gaussian_process.gaussian_process import MACHINE_EPSILON
-            nuggets = (X_nm_std / X_nm_m) ** 2.0
-            mask = ~np.isfinite(nuggets)
-            nuggets[mask] = 10. * MACHINE_EPSILON
 
-        pred = np.zeros((n_days, n_fx, n_hour, n_stations))
+        pred = np.zeros((n_days, n_fx, n_ens, n_hour, n_stations))
         if self.use_mse:
-            sigma2 = np.zeros((n_days, n_fx, n_hour, n_stations))
+            sigma2 = np.zeros((n_days, n_fx, n_ens, n_hour, n_stations))
         est = self.est
         for d in range(n_days):
-            print 'interpolate day: %d' % d
+            t0 = time()
             for f in range(n_fx):
-                for h in range(n_hour):
-                    y = X_nm_m[d, f, h].ravel()
-                    if self.use_nugget:
-                        nugget = nuggets[d, f, h].ravel()
-                        # set nugget
-                        est.set_params(nugget=nugget)
-                    est.fit(x, y)
-                    if self.use_mse:
-                        c_pred, c_sigma2 = est.predict(x_test, eval_MSE=True)
-                        sigma2[d, f, h] = c_sigma2
-                    else:
-                        c_pred = est.predict(x_test)
-                    pred[d, f, h] = c_pred
+                for e in range(n_ens):
+                    for h in range(n_hour):
+                        y = X_nm[d, f, e, h].ravel()
+                        est.fit(x, y)
+                        if self.use_mse:
+                            c_pred, c_sigma2 = est.predict(x_test, eval_MSE=True)
+                            sigma2[d, f, e, h] = c_sigma2
+                        else:
+                            c_pred = est.predict(x_test)
+                        pred[d, f, e, h] = c_pred
+            print('interpolate day: %d took %ds' % (d, time() - t0))
         if self.flatten:
-            pred = pred.reshape((pred.shape[0], np.prod(pred.shape[1:])))
+            pred = pred.reshape((pred.shape[0], -1))
             if self.use_mse:
-                sigma2 = sigma2.reshape((sigma2.shape[0],
-                                         np.prod(sigma2.shape[1:])))
+                sigma2 = sigma2.reshape((sigma2.shape[0], -1))
 
         print 'pred.shape', pred.shape
         X.blocks['nm_intp'] = pred
@@ -99,17 +91,17 @@ class Interpolate(TransformerMixin, BaseEstimator):
 class Kringing(Interpolate):
 
     est = GaussianProcess(corr='squared_exponential',
-                          theta0=(7.0, 3.0, 3.0))
-    use_nugget = True
-    use_mse = True
+                          theta0=(6.0, 6.0, 6.0))
+    use_nugget = False
+    use_mse = False
 
 
 class MultivariateNormal(object):
 
     def __init__(self):
-        self.lat = scipy.stats.norm(loc=5, scale=1)
-        self.lon = scipy.stats.norm(loc=5, scale=1)
-        self.elev = scipy.stats.norm(loc=5, scale=1)
+        self.lat = scipy.stats.norm(loc=8, scale=2)
+        self.lon = scipy.stats.norm(loc=8, scale=2)
+        self.elev = scipy.stats.norm(loc=5, scale=2)
 
     def rvs(self):
         return np.array([self.lon.rvs(), self.lat.rvs(), self.elev.rvs()])
@@ -137,7 +129,7 @@ def transform_data():
 
     print
     print('dumping data')
-    joblib.dump(data, 'data/interp4_data.pkl')
+    joblib.dump(data, 'data/interp5_data.pkl')
 
 
 def benchmark():
@@ -157,25 +149,25 @@ def benchmark():
     fx = 0
     day = 180
     y = X.nm[day, fx].mean(axis=0)[3]
-    nugget = X.nm[day, fx].std(axis=0)[3]
+    #nugget = X.nm[day, fx].std(axis=0)[3]
     mask = np.ones_like(y, dtype=np.bool)
-    rs = np.random.RandomState(1)
+    rs = np.random.RandomState(5)
     test_idx = np.c_[rs.randint(2, 7, 20),
                      rs.randint(3, 13, 20)]
     print test_idx.shape
     mask[test_idx[:, 0], test_idx[:, 1]] = False
     mask = mask.ravel()
     y = y.ravel()
-    nugget = nugget.ravel()[mask]
 
     print '_' * 80
-    est = GaussianProcess(corr='squared_exponential', theta0=(7.0, 3.0, 3.0),
-                          nugget=(nugget / y[mask]) ** 2.0)
+    est = GaussianProcess(corr='squared_exponential', theta0=(10, 10, 10))
     est.fit(x[mask], y[mask])
     pred = est.predict(x[~mask])
     print 'MAE: %.2f' % metrics.mean_absolute_error(y[~mask], pred)
 
     print '_' * 80
+
+    sys.exit(0)
 
     #import IPython
     #IPython.embed()

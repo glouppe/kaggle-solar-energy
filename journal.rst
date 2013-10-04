@@ -1023,3 +1023,54 @@ RMSE: 2995704.82
 R2: 0.85
 <- station id gave tiny increase
 
+
+
+interp5_data
+^^^^^^^^^^^^
+
+mean of ensembles; no nugget and mse
+sigma is std of ensembles
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02, loss=lad,
+             max_depth=6, max_features=25, min_samples_leaf=5,
+             min_samples_split=2, n_estimators=2000, random_state=1,
+             subsample=1.0, verbose=1),
+       est__alpha=0.9, est__init=None, est__learning_rate=0.02,
+       est__loss=lad, est__max_depth=6, est__max_features=25,
+       est__min_samples_leaf=5, est__min_samples_split=2,
+       est__n_estimators=2000, est__random_state=1, est__subsample=1.0,
+       est__verbose=1,
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_date=True, with_global=False, with_mask=True, with_solar=False,
+       with_stationid=False, with_stationinfo=True)
+
+MAE:  1924173.97
+RMSE: 2962615.38
+R2: 0.86
+
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02, loss=lad,
+             max_depth=6, max_features=35, min_samples_leaf=9,
+             min_samples_split=2, n_estimators=2000, random_state=1,
+             subsample=1.0, verbose=1),
+       est__alpha=0.9, est__init=None, est__learning_rate=0.02,
+       est__loss=lad, est__max_depth=6, est__max_features=35,
+       est__min_samples_leaf=9, est__min_samples_split=2,
+       est__n_estimators=2000, est__random_state=1, est__subsample=1.0,
+       est__verbose=1,
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_date=True, with_global=False, with_mask=True, with_solar=True,
+       with_stationid=False, with_stationinfo=True)
+
+MAE:  1925350.19
+RMSE: 2963032.26
+R2: 0.86
+
+4.10.2013
+^^^^^^^^^
+
+Try max_depth=7
+Try max_features=20
+Try min_leaf=9
+
+Try ens as examples

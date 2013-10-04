@@ -6,7 +6,8 @@ from matplotlib import pyplot as plt
 from sklearn import metrics
 
 
-def err_analysis(y_pred, y_test=None, X_test=None, station_info=None, date=None):
+def err_analysis(y_pred, y_test=None, X_test=None, station_info=None, date=None,
+                 mask=None):
     if X_test is not None:
         date = X_test.date
         station_info = pd.DataFrame(data=X_test.station_info,
@@ -24,13 +25,16 @@ def err_analysis(y_pred, y_test=None, X_test=None, station_info=None, date=None)
     ## else:
     ##     st_cols = np.arange(station_info.shape[0])
 
+    if mask is not None:
+        y_test[mask] = np.nan
+
     station_residuals = pd.DataFrame(index=index, columns=station_info['stid'],
                                      data=(y_test - y_pred))
 
     # # plot MAE by day
-    plt.figure()
+    ax1 = plt.subplot2grid((3, 3), (0, 0), colspan=3)
     daily_mae = np.abs(station_residuals).mean(axis=1)
-    daily_mae.plot(label='daily MAE')
+    daily_mae.plot(label='daily MAE', ax=ax1)
     plt.title('Daily MAE')
 
     # # plot MAE by day of year
@@ -38,47 +42,38 @@ def err_analysis(y_pred, y_test=None, X_test=None, station_info=None, date=None)
     doy = daily_ae.index.map(lambda x: x.dayofyear)
     df = pd.DataFrame(index=daily_ae.index, data={'ae': daily_ae, 'doy': doy})
     doy_mae = df.groupby('doy').mean()
-    doy_mae.plot(kind='bar', figsize=(24, 8))
-    plt.title('Day-of-year MAE')
 
+    ax2 = plt.subplot2grid((3, 3), (1, 0), colspan=3)
+    doy_mae.plot(kind='bar', ax=ax2)
+    plt.title('Day-of-year MAE')
 
     # # plot MAE by month
     daily_ae = np.abs(station_residuals).sum(axis=1)
     month = daily_ae.index.map(lambda x: x.month)
     df = pd.DataFrame(index=daily_ae.index, data={'ae': daily_ae, 'month': month})
     doy_mae = df.groupby('month').mean()
-    doy_mae.plot(kind='bar')
+    ax3 = plt.subplot2grid((3, 3), (2, 0))
+    doy_mae.plot(kind='bar', ax=ax3)
     plt.title('Monthly MAE')
 
     # plot MAE by station
-    plt.figure()
     station_mae = np.abs(station_residuals).mean(axis=0)
     station_mae.sort()
-    station_mae.plot(kind='bar', grid=False)
+    ax4 = plt.subplot2grid((3, 3), (2, 1))
+    station_mae.plot(kind='bar', grid=False, ax=ax4)
     plt.title('Station MAE')
-
-    # plot residuals of worst stations
-    k = 6
-    worst_stid = station_mae.index[-k:]
-    f, axes = plt.subplots(k // 2, 2, sharex=True, sharey=True)
-    for stid, ax in zip(worst_stid, axes.ravel()):
-        station_residuals.iloc[:, stid].plot(ax=ax)
-        ax.set_title('Station id %d' % stid)
-
-    # scatter worst stations
-    # plt.scatter(station_info.elon[worst_stid],
-    #             station_info.nlat[worst_stid],
-    #             s=7**2)
 
     # plot stations on lon-lat grid and colorcode MAE to
     # see spatial-mae correlation
     station_mae.name = 'mae'
     station_info = station_info.join(station_mae, on='stid')
-    plt.figure()
-    plt.scatter(station_info.elon, station_info.nlat,
-                c=station_info.mae / station_info.mae.max(),
-                s=7**2)
-    plt.colorbar()
+    ax5 = plt.subplot2grid((3, 3), (2, 2))
+    cs = ax5.scatter(station_info.elon, station_info.nlat,
+                     c=station_info.mae / station_info.mae.max(),
+                     s=7**2)
+    plt.colorbar(cs, ax=ax5)
+    plt.title('Station MAE (spatial correlation)')
+    #plt.tight_layout()
 
     # # plot true-pred correlation
     plt.figure()
@@ -98,5 +93,13 @@ def err_analysis(y_pred, y_test=None, X_test=None, station_info=None, date=None)
     lower_mae = metrics.mean_absolute_error(y[~mask], p[~mask])
     plt.text(0 * 4e7, 0.95 * 4e7, 'Upper MAE: %.0f' % upper_mae, fontsize=8)
     plt.text(0.7 * 4e7, 0 * 4e7, 'Lower MAE: %.0f' % lower_mae, fontsize=8)
+
+    # plot residuals of worst stations
+    k = 10
+    worst_stid = station_mae.index[-k:]
+    f, axes = plt.subplots(k // 2, 2, sharex=True, sharey=True)
+    for stid, ax in zip(worst_stid, axes.ravel()):
+        station_residuals.iloc[:, stid].plot(ax=ax)
+        ax.set_title('Station id %d' % stid)
 
     plt.show()

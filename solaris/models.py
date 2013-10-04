@@ -1091,6 +1091,11 @@ class KringingModel(BaseEstimator, RegressorMixin):
             X_st.fx_name['nm_intp_sigma'] = map(lambda s: '%s_sigma' % s,
                                                 X_st.fx_name['nm'])
 
+        X_nm_intp = X_st['nm_intp']
+        # mean and std over ens
+        X_st['nm_intp'] = X_nm_intp.mean(axis=2)
+        X_st['nm_intp_sigma'] = X_nm_intp.std(axis=2)
+
         ## transform function
         ft = FunctionTransformer(block='nm_intp', new_block='nmft_intp',
                                  ops=(
@@ -1167,24 +1172,26 @@ class KringingModel(BaseEstimator, RegressorMixin):
         ## transform nm_intp to hourly features
         for b_name in self.intp_blocks:
             X = X_st[b_name]
+            print b_name, X.shape
             # swap features and station interpolations
             X = np.swapaxes(X, 1, 3)
             fx_names.extend(['_'.join((b_name, fx, str(h)))
                              for fx in X_st.fx_name[b_name]
                              for h in range(X.shape[-2])])
-            X = X.reshape((np.prod(X.shape[:2]), np.prod(X.shape[2:])))
+            X = X.reshape((np.prod(X.shape[:2]), -1))
             out.append(X)
 
         ## transform to mean features
         for b_name in self.intp_blocks:
             X = X_st[b_name]
+            print b_name, X.shape
             # swap features and station interpolations
             X = np.swapaxes(X, 1, 3)
             # n_day x n_stat x n_hour x n_fx
             X = np.mean(X, axis=2)
             fx_names.extend(['_'.join((b_name, fx, 'm'))
                              for fx in X_st.fx_name[b_name]])
-            X = X.reshape((np.prod(X.shape[:2]), np.prod(X.shape[2:])))
+            X = X.reshape((np.prod(X.shape[:2]), -1))
             out.append(X)
 
         out = np.hstack(out)
