@@ -27,24 +27,14 @@ from time import time
 
 from sklearn.externals import joblib
 from sklearn.linear_model import Ridge
-from sklearn.linear_model import RidgeCV
-from sklearn.feature_selection import RFE
 from sklearn.preprocessing import StandardScaler
-from sklearn.ensemble import RandomForestRegressor
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.dummy import DummyRegressor
-from sklearn.pipeline import Pipeline
-from sklearn.neighbors import KNeighborsRegressor
 from sklearn import cross_validation
 from sklearn import metrics
-from sklearn import pls
 
 from .models import MODELS
-from .models import FunctionTransformer
-from .models import DateTransformer
 from .models import BaselineTransformer
-from .models import PipelineModel
-from .models import ValueTransformer
 from .models import IndividualEstimator
 from .err_analysis import err_analysis
 from . import util
@@ -116,7 +106,6 @@ def train_test(args):
     X = data['X_train']
     y = data['y_train']
 
-
     # just first 50 stations (otherwise too much)
     ## y = y[:, :25]
     ## X.station_info = X.station_info[:25]
@@ -127,7 +116,7 @@ def train_test(args):
     X_test, y_test = X[offset:], y[offset:]
 
     #est = RidgeCV(alphas=10. ** np.arange(-7, 1, 1), normalize=True)
-    est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=6,
+    est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=7,
                                     min_samples_leaf=5, learning_rate=0.02,
                                     max_features=25, random_state=1,
                                     loss='lad')

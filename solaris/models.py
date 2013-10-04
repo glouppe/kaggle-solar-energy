@@ -427,7 +427,7 @@ class LocalTransformer(BaseEstimator, TransformerMixin):
                         blk = X_b[:, :, :, lai - k:lai + k + 1,
                                   loi - k: loi + k + 1]
                     blk = blk.reshape((blk.shape[0], np.prod(blk.shape[1:])))
-                    X_p[i*n_days:((i+1) * n_days),
+                    X_p[i * n_days:((i+1) * n_days),
                         offset:(offset + blk.shape[1])] = blk
                     if i == 0:
                         offset_inc = blk.shape[1]
@@ -1002,7 +1002,7 @@ class DBNModel(BaseEstimator, RegressorMixin):
                            l2_costs=0.00001,
                            momentum=0.0,
                            verbose=2,
-                           scales=0.05, # tuned
+                           scales=0.05,  # tuned
                            minibatch_size=64,
                            nesterov=False,
                            nest_compare=True,
@@ -1029,6 +1029,30 @@ class DBNModel(BaseEstimator, RegressorMixin):
 
 
 class KringingModel(BaseEstimator, RegressorMixin):
+    """Assumes that blocks ``nm_intp`` is present - interpolation
+    of station parameters by Kriging (see solaris.kringing).
+
+    Parameters
+    ----------
+    intp_blocks : seq of str
+        The blocks of X that are used to create the features; defaults
+        to interpolated parameters, functional transformation, and
+        standard deviation of intp.
+    with_global : bool
+        Whether or not to include global features
+    with_stationinfo : bool
+        Whether or not to include station lat, lon, and elev
+    with_date : bool
+        Whether or not to include day of year feature.
+    with_solar : bool
+        Whether or not to include time of sunrise, sunset and diff thereof.
+    with_mask : bool
+        Whether to exclude samples that have been imputed by the organizers
+        (see utils.mask_missing_values).
+    with_stationid : bool
+        Whether to include a one-hot encoding of the stationids.
+
+    """
 
     def __init__(self, est, intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
                  with_global=False, with_stationinfo=True, with_date=True,
