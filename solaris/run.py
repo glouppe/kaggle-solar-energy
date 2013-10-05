@@ -116,9 +116,10 @@ def train_test(args):
     X_test, y_test = X[offset:], y[offset:]
 
     #est = RidgeCV(alphas=10. ** np.arange(-7, 1, 1), normalize=True)
-    est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=7,
+    est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=8,
                                     min_samples_leaf=5, learning_rate=0.02,
-                                    max_features=25, random_state=1,
+                                    max_features=20, random_state=1,
+                                    subsample=0.5,
                                     loss='lad')
 
     model_cls = MODELS[args['<model>']]
@@ -157,7 +158,7 @@ def train_test(args):
     if args['--err-analysis']:
         # reread test data because has been transformed inplace
         X_test, y_test = X[offset:], y[offset:]
-        err_analysis(pred, y_test, X_test=X_test, mask=mask)
+        err_analysis(pred, y_test.copy(), X_test=X_test, mask=mask)
 
     import IPython
     IPython.embed()
@@ -175,14 +176,14 @@ def submit(args):
 
     X_test = data['X_test']
 
-    est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=6,
-                                    min_samples_leaf=9, learning_rate=0.02,
-                                    max_features=33, random_state=1,
+    est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=7,
+                                    min_samples_leaf=5, learning_rate=0.02,
+                                    max_features=20, random_state=1,
                                     loss='lad')
 
     model_cls = MODELS[args['<model>']]
     model = model_cls(est=est, with_stationinfo=True,
-                      with_date=True, with_solar=True,
+                      with_date=True, with_solar=False,
                       with_mask=True)
 
     print('_' * 80)
@@ -209,7 +210,7 @@ def submit(args):
     stid = pd.read_csv('data/station_info.csv')['stid']
     out = pd.DataFrame(index=date_idx, columns=stid, data=pred)
     out.index.name = 'Date'
-    out.to_csv('hk_10.csv')
+    out.to_csv('hk_11.csv')
     import IPython
     IPython.embed()
 
