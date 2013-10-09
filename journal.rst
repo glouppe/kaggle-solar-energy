@@ -1145,3 +1145,75 @@ KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=
 MAE:  1922856.57
 RMSE: 2960597.35
 R2: 0.86
+
+
+9.10.2013
+^^^^^^^^^
+
+runs w/o test set masking
+
+interp5
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02,
+             loss='lad', max_depth=7, max_features=20, min_samples_leaf=9,
+             min_samples_split=2, n_estimators=2000, random_state=1,
+             subsample=0.5, verbose=1),
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_date=True, with_global=False, with_mask=True, with_solar=False,
+       with_stationid=False, with_stationinfo=False)
+MAE:  1956862.19
+RMSE: 3048263.72
+R2: 0.85
+
+
+interp4
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02, loss=lad,
+             max_depth=7, max_features=20, min_samples_leaf=9,
+             min_samples_split=2, n_estimators=2000, random_state=1,
+             subsample=0.5, verbose=1),
+       est__alpha=0.9, est__init=None, est__learning_rate=0.02,
+       est__loss=lad, est__max_depth=7, est__max_features=20,
+       est__min_samples_leaf=9, est__min_samples_split=2,
+       est__n_estimators=2000, est__random_state=1, est__subsample=0.5,
+       est__verbose=1,
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_date=True, with_global=False, with_mask=True, with_solar=False,
+       with_stationid=False, with_stationinfo=False)
+MAE:  1966442.06
+RMSE: 3062806.62
+R2: 0.85
+
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02, loss=lad,
+             max_depth=7, max_features=20, min_samples_leaf=9,
+             min_samples_split=2, n_estimators=2000, random_state=1,
+             subsample=0.5, verbose=1),
+       est__alpha=0.9, est__init=None, est__learning_rate=0.02,
+       est__loss=lad, est__max_depth=7, est__max_features=20,
+       est__min_samples_leaf=9, est__min_samples_split=2,
+       est__n_estimators=2000, est__random_state=1, est__subsample=0.5,
+       est__verbose=1,
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_date=True, with_global=False, with_mask=True, with_solar=False,
+       with_stationid=False, with_stationinfo=True)
+
+MAE:  1958621.37
+RMSE: 3047525.77
+R2: 0.85
+-> again stationinfo doesn't help
+
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02, loss=lad,
+             max_depth=7, max_features=20, min_samples_leaf=9,
+             min_samples_split=2, n_estimators=2000, random_state=1,
+             subsample=0.5, verbose=1),
+       est__alpha=0.9, est__init=None, est__learning_rate=0.02,
+       est__loss=lad, est__max_depth=7, est__max_features=20,
+       est__min_samples_leaf=9, est__min_samples_split=2,
+       est__n_estimators=2000, est__random_state=1, est__subsample=0.5,
+       est__verbose=1, intp_blocks=('nm_intp', 'nmft_intp'),
+       with_date=True, with_global=False, with_mask=True, with_solar=False,
+       with_stationid=False, with_stationinfo=True)
+MAE:  2003582.85
+RMSE: 3105179.71
+R2: 0.84
+-> run using just control member of ensemble

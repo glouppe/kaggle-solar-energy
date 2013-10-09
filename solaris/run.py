@@ -43,8 +43,8 @@ from . import util
 #                                 greater_is_better=True)
 
 
-def load_data():
-    data = joblib.load('data/interp5_data.pkl', mmap_mode='r')
+def load_data(fname='data/interp5_data.pkl'):
+    data = joblib.load(fname, mmap_mode='r')
     return data
 
 
@@ -116,8 +116,8 @@ def train_test(args):
     X_test, y_test = X[offset:], y[offset:]
 
     #est = RidgeCV(alphas=10. ** np.arange(-7, 1, 1), normalize=True)
-    est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=8,
-                                    min_samples_leaf=5, learning_rate=0.02,
+    est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=7,
+                                    min_samples_leaf=9, learning_rate=0.02,
                                     max_features=20, random_state=1,
                                     subsample=0.5,
                                     loss='lad')
@@ -126,6 +126,7 @@ def train_test(args):
     model = model_cls(est=est, with_stationinfo=True,
                       with_date=True, with_solar=False,
                       with_mask=True, with_stationid=False,
+                      intp_blocks=('nm_intp', 'nmft_intp', ) ## FIXME
                       )
 
     print('_' * 80)
@@ -146,10 +147,13 @@ def train_test(args):
     if args['--scaley']:
         pred = scaler.inverse_transform(pred)
 
-    # FIXME clean ytest
-    mask = util.clean_missing_labels(y_test)
-    pred_ = pred.ravel()[~mask.ravel()]
-    y_test_ = y_test.ravel()[~mask.ravel()]
+    # FIXME to mask or not to mask
+    #mask = util.clean_missing_labels(y_test)
+    #pred_ = pred.ravel()[~mask.ravel()]
+    #y_test_ = y_test.ravel()[~mask.ravel()]
+    mask = None
+    pred_ = pred.ravel()
+    y_test_ = y_test.ravel()
 
     print("MAE:  %0.2f" % metrics.mean_absolute_error(y_test_, pred_))
     print("RMSE: %0.2f" % np.sqrt(metrics.mean_squared_error(y_test_, pred_)))
@@ -177,13 +181,14 @@ def submit(args):
     X_test = data['X_test']
 
     est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=7,
-                                    min_samples_leaf=5, learning_rate=0.02,
+                                    min_samples_leaf=9, learning_rate=0.02,
                                     max_features=20, random_state=1,
+                                    subsample=0.5,
                                     loss='lad')
 
     model_cls = MODELS[args['<model>']]
     model = model_cls(est=est, with_stationinfo=True,
-                      with_date=True, with_solar=False,
+                      with_date=True, with_solar=True,
                       with_mask=True)
 
     print('_' * 80)
@@ -210,7 +215,7 @@ def submit(args):
     stid = pd.read_csv('data/station_info.csv')['stid']
     out = pd.DataFrame(index=date_idx, columns=stid, data=pred)
     out.index.name = 'Date'
-    out.to_csv('hk_11.csv')
+    out.to_csv('hk_14.csv')
     import IPython
     IPython.embed()
 

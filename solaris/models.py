@@ -1116,7 +1116,7 @@ class KringingModel(BaseEstimator, RegressorMixin):
                                                 X_st.fx_name['nm'])
 
         X_nm_intp = X_st['nm_intp']
-        # mean and std over ens
+        # mean and std
         X_st['nm_intp'] = X_nm_intp.mean(axis=2)
         X_st['nm_intp_sigma'] = X_nm_intp.std(axis=2)
 

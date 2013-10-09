@@ -212,23 +212,65 @@ def benchmark():
 
 def inspect():
     from solaris.run import load_data
-    data = load_data()
+    data = load_data('data/data.pkl')
     X = data['X_train']
     y = data['y_train']
 
-    x_train = Interpolate._grid_data()
+    ## x_train = Interpolate._grid_data()
 
-    fx = 0
-    day = 180
-    y_train = X.nm[day, fx, 0, 3]
+    ## fx = 0
+    ## day = 180
+    ## y_train = X.nm[day, fx, 0, 3]
+    ## est = GaussianProcess(corr='squared_exponential',
+    ##                       theta0=4.0)
+    ## est.fit(x_train, y_train)
+
+    ## n_lat, n_lon = y_train.shape
+    ## m = np.mgrid[0:n_lat:0.5, 0:n_lon:0.5]
+
+
+
+    grid = Dataset('data/gefs_elevations.nc', 'r')
+    grid_elev = grid.variables['elevation_control'][:]
+    lon = np.unique(grid.variables['longitude'][:] - 360)
+    lat = np.unique(grid.variables['latitude'][:])
+
+    # take a grid
+    G = X.nm[0, 0, 0, 3]
+
+    new_lats = np.linspace(lat.min(), lat.max(), 10 * lat.shape[0])
+    new_lons = np.linspace(lon.min(), lon.max(), 10 * lon.shape[0])
+    new_lats, new_lons = np.meshgrid(new_lats, new_lons)
+
+    from scipy.interpolate import RectBivariateSpline
+    lut = RectSphereBivariateSpline(lat, lon, G)
+
+    G_i = lut.ev(new_lats.ravel(),
+                 new_lons.ravel()).reshape((10 * lon.shape[0],
+                                            10 * lat.shape[0])).T
+
+
+    x = Interpolate._grid_data()[:, [1, 0]]
+    y = G.ravel()
     est = GaussianProcess(corr='squared_exponential',
-                          theta0=4.0)
-    est.fit(x_train, y_train)
+                          theta0=(2.0))
+    est.fit(x, y)
+    G_gp = est.predict(np.c_[new_lats.ravel(),
+                             new_lons.ravel()]).reshape((10 * lon.shape[0],
+                                                 10 * lat.shape[0])).T
 
-    n_lat, n_lon = y_train.shape
-    m = np.mgrid[0:n_lat:0.5, 0:n_lon:0.5]
+    fig, ([ax1, ax2, ax3]) = plt.subplots(3, 1)
+    ax1.imshow(G, interpolation='none')
+    ax2.imshow(G_i, interpolation='none')
+    ax3.imshow(G_gp, interpolation='none')
+
+
+
+    import IPython
+    IPython.embed()
 
 
 if __name__ == '__main__':
-    transform_data()
+    #transform_data()
     #benchmark()
+    inspect()
