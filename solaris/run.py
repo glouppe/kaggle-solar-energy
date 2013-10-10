@@ -103,7 +103,7 @@ def cross_val(args):
 
 def train_test(args):
     """Run train-test experiment. """
-    data = load_data()
+    data = load_data('data/data.pkl')
     X = data['X_train']
     y = data['y_train']
 
