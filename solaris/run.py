@@ -117,9 +117,9 @@ def train_test(args):
     X_test, y_test = X[offset:], y[offset:]
 
     #est = RidgeCV(alphas=10. ** np.arange(-7, 1, 1), normalize=True)
-    est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=5,
-                                    min_samples_leaf=9, learning_rate=0.02,
-                                    max_features=50, random_state=1,
+    est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=6,
+                                    min_samples_leaf=5, learning_rate=0.02,
+                                    max_features=33, random_state=1,
                                     subsample=1.0,
                                     loss='lad')
 
@@ -152,10 +152,18 @@ def train_test(args):
     mask = util.clean_missing_labels(y_test)
     pred_ = pred.ravel()[~mask.ravel()]
     y_test_ = y_test.ravel()[~mask.ravel()]
+
+    print('_' * 80)
+    print('With masking')
+    print("MAE:  %0.2f" % metrics.mean_absolute_error(y_test_, pred_))
+    print("RMSE: %0.2f" % np.sqrt(metrics.mean_squared_error(y_test_, pred_)))
+    print("R2: %0.2f" % metrics.r2_score(y_test_, pred_))
+    print
+
     mask = None
     pred_ = pred.ravel()
     y_test_ = y_test.ravel()
-
+    print('Without masking')
     print("MAE:  %0.2f" % metrics.mean_absolute_error(y_test_, pred_))
     print("RMSE: %0.2f" % np.sqrt(metrics.mean_squared_error(y_test_, pred_)))
     print("R2: %0.2f" % metrics.r2_score(y_test_, pred_))
