@@ -111,7 +111,7 @@ def transform_data():
     from solaris.run import load_data
     from sklearn.externals import joblib
 
-    data = load_data()
+    data = load_data('data/data.pkl')
 
     kringing = Kringing()
     print('_' * 80)
@@ -272,6 +272,6 @@ def inspect():
 
 
 if __name__ == '__main__':
-    #transform_data()
+    transform_data()
     #benchmark()
-    inspect()
+    #inspect()

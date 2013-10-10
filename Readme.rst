@@ -23,3 +23,7 @@ To create this format from the Kaggle download use the script
 
 This will save the transformed data into the `data` subfolder.
 The name is `data/data.pkl`.
+
+To generate the interpolated blocks use the script `solaris.kringing`.
+
+    $ python -m solaris.kringing
