@@ -1,16 +1,4 @@
-"""
-from solaris import util
-X_test, y_test = X[offset:], y[offset:]
-X_test_ = model.transform(X_test)
-y_test_ = model.transform_labels(y_test)
-mask = util.clean_missing_labels(y_test)
-mask = mask.ravel()
-X_test_, y_test_ = X_test_[~mask], y_test_[~mask]
-util.plot_deviance(est, X_test_, y_test_)
-util.plt.show()
-"""
-
-
+"""Various utilities. """
 import numpy as np
 
 from sklearn import metrics
@@ -22,6 +10,19 @@ def plot_deviance(clf, X_test, y_test):
 
     Plot train/test deviance at each stage - requires that
     ``clf`` supports ``staged_decision_function``.
+
+    Example
+    =======
+
+    from solaris import util
+    X_test, y_test = X[offset:], y[offset:]
+    X_test_ = model.transform(X_test)
+    y_test_ = model.transform_labels(y_test)
+    mask = util.clean_missing_labels(y_test)
+    mask = mask.ravel()
+    X_test_, y_test_ = X_test_[~mask], y_test_[~mask]
+    util.plot_deviance(est, X_test_, y_test_)
+    util.plt.show()
     """
     n_estimators = len(clf)
     test_deviance = np.zeros((n_estimators,), dtype=np.float64)
@@ -44,6 +45,25 @@ def plot_deviance(clf, X_test, y_test):
     plt.ylabel('Test Set Deviance')
 
 
+def plot_fx_imp(est, fx_names, k=50):
+    """Plot feature importances of ``est`` as a bar plot.
+
+    Uses ``est.feature_importances_`` or ``abs(est.coef_)`` to get
+    importance.
+    Plots the top ``k`` features.
+    """
+    try:
+        fx_imp = est.feature_importances_
+        fx_imp = fx_imp / fx_imp.max()
+    except:
+        fx_imp = np.abs(est.coef_)
+
+    idx = fx_imp.argsort()[::-1][:k]
+    plt.barh(np.arange(idx.shape[0]), fx_imp[idx], height=1.0)
+    plt.yticks(np.arange(idx.shape[0]) + 0.3, np.array(fx_names)[idx])
+    plt.show()
+
+
 def clean_missing_labels(y):
     """The function will remove the interpolation done by the comp organizers.
 
@@ -57,4 +77,3 @@ def clean_missing_labels(y):
     diffs = np.vstack([np.ones(y.shape[1]), diffs])
     mask = np.logical_or(diffs == 0.0, (y % 100) != 0.0)
     return mask
-
