@@ -1293,3 +1293,48 @@ w/ masking
 MAE:  1936357.36
 RMSE: 2981947.05
 R2: 0.85
+
+
+KringingModel(est=RidgeCV(alphas=[  1.00000e-07   1.00000e-06   1.00000e-05   1.00000e-04   1.00000e-03
+   1.00000e-02   1.00000e-01   1.00000e+00],
+    cv=None, fit_intercept=True, gcv_mode=None, loss_func=None,
+    normalize=True, score_func=None, scoring=None, store_cv_values=False),
+       est__alphas=[  1.00000e-07   1.00000e-06   1.00000e-05   1.00000e-04   1.00000e-03
+   1.00000e-02   1.00000e-01   1.00000e+00],
+       est__cv=None, est__fit_intercept=True, est__gcv_mode=None,
+       est__loss_func=None, est__normalize=True, est__score_func=None,
+       est__scoring=None, est__store_cv_values=False,
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_date=True, with_global=False, with_mask=False,
+       with_solar=False, with_stationid=False, with_stationinfo=True)
+
+With masking
+MAE:  2129490.69
+RMSE: 3020393.59
+R2: 0.85
+
+Without masking
+MAE:  2172092.17
+RMSE: 3125587.30
+R2: 0.84
+
+Baseline(date=center,
+     est=RidgeCV(alphas=[  1.00000e-07   1.00000e-06   1.00000e-05   1.00000e-04   1.00000e-03
+   1.00000e-02   1.00000e-01   1.00000e+00],
+    cv=None, fit_intercept=True, gcv_mode=None, loss_func=None,
+    normalize=True, score_func=None, scoring=None, store_cv_values=False),
+     est__alphas=[  1.00000e-07   1.00000e-06   1.00000e-05   1.00000e-04   1.00000e-03
+   1.00000e-02   1.00000e-01   1.00000e+00],
+     est__cv=None, est__fit_intercept=True, est__gcv_mode=None,
+     est__loss_func=None, est__normalize=True, est__score_func=None,
+     est__scoring=None, est__store_cv_values=False)
+
+With masking
+MAE:  2227701.24
+RMSE: 3109077.66
+R2: 0.84
+
+Without masking
+MAE:  2269232.80
+RMSE: 3207800.21
+R2: 0.83

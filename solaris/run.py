@@ -26,6 +26,7 @@ from itertools import izip
 from time import time
 
 from sklearn.externals import joblib
+from sklearn.linear_model import RidgeCV
 from sklearn.linear_model import Ridge
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import GradientBoostingRegressor
@@ -116,16 +117,17 @@ def train_test(args):
     X_train, y_train = X[:offset], y[:offset]
     X_test, y_test = X[offset:], y[offset:]
 
-    #est = RidgeCV(alphas=10. ** np.arange(-7, 1, 1), normalize=True)
-    est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=6,
-                                    min_samples_leaf=5, learning_rate=0.02,
-                                    max_features=33, random_state=1,
-                                    subsample=1.0,
-                                    loss='lad')
+    est = RidgeCV(alphas=10. ** np.arange(-7, 1, 1), normalize=True)
+    # est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=6,
+    #                                 min_samples_leaf=5, learning_rate=0.02,
+    #                                 max_features=33, random_state=1,
+    #                                 subsample=1.0,
+    #                                 loss='lad')
 
     model_cls = MODELS[args['<model>']]
-    model = model_cls(est=est, with_stationinfo=True,
-                      with_date=True, with_solar=False,
+    model = model_cls(est=est,
+                      #with_stationinfo=True,
+                      #with_date=True, with_solar=False,
                       #with_mask=True, with_stationid=False,
                       #intp_blocks=('nm_intp', 'nmft_intp', ),
                       )
