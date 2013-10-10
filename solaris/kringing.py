@@ -211,6 +211,8 @@ def benchmark():
 
 
 def inspect():
+    from netCDF4 import Dataset
+    from matplotlib import pyplot as plt
     from solaris.run import load_data
     data = load_data('data/data.pkl')
     X = data['X_train']
@@ -231,7 +233,6 @@ def inspect():
 
 
     grid = Dataset('data/gefs_elevations.nc', 'r')
-    grid_elev = grid.variables['elevation_control'][:]
     lon = np.unique(grid.variables['longitude'][:] - 360)
     lat = np.unique(grid.variables['latitude'][:])
 
@@ -243,7 +244,7 @@ def inspect():
     new_lats, new_lons = np.meshgrid(new_lats, new_lons)
 
     from scipy.interpolate import RectBivariateSpline
-    lut = RectSphereBivariateSpline(lat, lon, G)
+    lut = RectBivariateSpline(lat, lon, G)
 
     G_i = lut.ev(new_lats.ravel(),
                  new_lons.ravel()).reshape((10 * lon.shape[0],

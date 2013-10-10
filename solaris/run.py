@@ -112,21 +112,22 @@ def train_test(args):
 
     # no shuffle - past-future split
     offset = X.shape[0] * 0.5
+    offset = 3287  # this is 1.1.2003
     X_train, y_train = X[:offset], y[:offset]
     X_test, y_test = X[offset:], y[offset:]
 
     #est = RidgeCV(alphas=10. ** np.arange(-7, 1, 1), normalize=True)
-    est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=7,
+    est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=5,
                                     min_samples_leaf=9, learning_rate=0.02,
-                                    max_features=20, random_state=1,
-                                    subsample=0.5,
+                                    max_features=50, random_state=1,
+                                    subsample=1.0,
                                     loss='lad')
 
     model_cls = MODELS[args['<model>']]
     model = model_cls(est=est, with_stationinfo=True,
                       with_date=True, with_solar=False,
-                      with_mask=True, with_stationid=False,
-                      intp_blocks=('nm_intp', 'nmft_intp', ) ## FIXME
+                      #with_mask=True, with_stationid=False,
+                      #intp_blocks=('nm_intp', 'nmft_intp', ),
                       )
 
     print('_' * 80)
@@ -148,9 +149,9 @@ def train_test(args):
         pred = scaler.inverse_transform(pred)
 
     # FIXME to mask or not to mask
-    #mask = util.clean_missing_labels(y_test)
-    #pred_ = pred.ravel()[~mask.ravel()]
-    #y_test_ = y_test.ravel()[~mask.ravel()]
+    mask = util.clean_missing_labels(y_test)
+    pred_ = pred.ravel()[~mask.ravel()]
+    y_test_ = y_test.ravel()[~mask.ravel()]
     mask = None
     pred_ = pred.ravel()
     y_test_ = y_test.ravel()

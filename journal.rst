@@ -1217,3 +1217,58 @@ MAE:  2003582.85
 RMSE: 3105179.71
 R2: 0.84
 -> run using just control member of ensemble
+
+
+new TT split (2002)
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02, loss=lad,
+             max_depth=6, max_features=20, min_samples_leaf=9,
+             min_samples_split=2, n_estimators=2000, random_state=1,
+             subsample=0.8, verbose=1),
+       est__alpha=0.9, est__init=None, est__learning_rate=0.02,
+       est__loss=lad, est__max_depth=6, est__max_features=20,
+       est__min_samples_leaf=9, est__min_samples_split=2,
+       est__n_estimators=2000, est__random_state=1, est__subsample=0.8,
+       est__verbose=1,
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_date=True, with_global=False, with_mask=True, with_solar=False,
+       with_stationid=False, with_stationinfo=True)
+MAE:  1968803.56
+RMSE: 3074546.01
+R2: 0.84
+
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02, loss=lad,
+             max_depth=6, max_features=35, min_samples_leaf=9,
+             min_samples_split=2, n_estimators=2000, random_state=1,
+             subsample=1.0, verbose=1),
+       est__alpha=0.9, est__init=None, est__learning_rate=0.02,
+       est__loss=lad, est__max_depth=6, est__max_features=35,
+       est__min_samples_leaf=9, est__min_samples_split=2,
+       est__n_estimators=2000, est__random_state=1, est__subsample=1.0,
+       est__verbose=1,
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_date=True, with_global=False, with_mask=True, with_solar=False,
+       with_stationid=False, with_stationinfo=True)
+
+MAE:  1968489.94
+RMSE: 3075962.55
+R2: 0.84
+
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02, loss=lad,
+             max_depth=5, max_features=50, min_samples_leaf=9,
+             min_samples_split=2, n_estimators=2000, random_state=1,
+             subsample=1.0, verbose=1),
+       est__alpha=0.9, est__init=None, est__learning_rate=0.02,
+       est__loss=lad, est__max_depth=5, est__max_features=50,
+       est__min_samples_leaf=9, est__min_samples_split=2,
+       est__n_estimators=2000, est__random_state=1, est__subsample=1.0,
+       est__verbose=1,
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_date=True, with_global=False, with_mask=False,
+       with_solar=False, with_stationid=False, with_stationinfo=True)
+
+MAE:  1974320.20
+RMSE: 3088022.21
+R2: 0.84
