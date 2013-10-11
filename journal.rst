@@ -1412,3 +1412,4 @@ Ideas (Gilles):
   5) Features
       - add "wrapped" doy:
           (doy + offset) % 365 for offset = 90, 180, 270?
+      - is there a feature for the hour of the measurement?
