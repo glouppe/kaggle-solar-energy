@@ -62,7 +62,7 @@ def _cross_val(model, X, y, train, test):
 
 def cross_val(args):
     """Run 5-fold cross-validation. """
-    data = load_data()
+    data = load_data(args['--data'])
     X = data['X_train']
     y = data['y_train']
 
@@ -187,7 +187,7 @@ def grid_search(args):
 
 def submit(args):
     """Run train-test experiment. """
-    data = load_data()
+    data = load_data(args['--data'])
     X_train = data['X_train']
     y_train = data['y_train']
 
