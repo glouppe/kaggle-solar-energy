@@ -126,9 +126,9 @@ def train_test(args):
 
     model_cls = MODELS[args['<model>']]
     model = model_cls(est=est,
-                      #with_stationinfo=True,
-                      #with_date=True, with_solar=False,
-                      #with_mask=True, with_stationid=False,
+                      with_stationinfo=True,
+                      with_date=True, with_solar=False,
+                      with_mask=True, with_stationid=False,
                       #intp_blocks=('nm_intp', 'nmft_intp', ),
                       )
 
@@ -173,6 +173,7 @@ def train_test(args):
     if args['--err-analysis']:
         # reread test data because has been transformed inplace
         X_test, y_test = X[offset:], y[offset:]
+        mask = util.clean_missing_labels(y_test)
         err_analysis(pred, y_test.copy(), X_test=X_test, mask=mask)
 
     import IPython

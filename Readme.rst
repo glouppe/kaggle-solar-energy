@@ -8,6 +8,7 @@ Requirements
 pandas>=0.12.0
 numpy>=1.7.1
 docopt>=0.6.1
+netCDF4>=1.0.4
 
 Data
 ====
