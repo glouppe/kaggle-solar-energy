@@ -1390,3 +1390,25 @@ With masking
 MAE:  1915553.96
 RMSE: 2950142.98
 R2: 0.85
+
+
+Ideas (Gilles):
+
+  1) Add new samples for "fake stations" around the actual target stations and
+  set the same output. => This should make the model more robust by forcing the
+  solar activity to be locally the same
+
+  2) Make multiple predictions around the target stations and average. => This
+  should reduce the variance of predictions
+
+  Combine 1 + 2.
+
+  3) Study the variance of the GBRT model
+      - try several random seeds
+      - probe the neighborhood of the stations
+
+  4) Filter out unimportant features
+
+  5) Features
+      - add "wrapped" doy:
+          (doy + offset) % 365 for offset = 90, 180, 270?
