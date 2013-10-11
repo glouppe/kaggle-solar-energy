@@ -154,8 +154,8 @@ def transform_data():
     data = load_data('data/data.pkl')
 
     #kringing = Kringing()
-    #kringing = Spline()
-    kringing = Linear()
+    kringing = Spline()
+
     print('_' * 80)
     print(kringing)
     print
@@ -171,7 +171,7 @@ def transform_data():
 
     print
     print('dumping data')
-    joblib.dump(data, 'data/interp7_data.pkl')
+    joblib.dump(data, 'data/interp6_data.pkl')
     IPython.embed()
 
 
