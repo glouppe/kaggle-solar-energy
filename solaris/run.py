@@ -16,7 +16,8 @@ Options:
   --verbose=LEVEL  Verbosity level [default: 2].
   --n_jobs=N_JOBS  Number of CPUs [default: 1].
   --scaley      Standardize Y before fit.
-  --err-analysis   Show error analysis report
+  --err-analysis   Show error analysis report.
+  --data=FILE   Data file to be used [default: ./data/interp6_data.pkl].
 """
 import numpy as np
 import pandas as pd
@@ -44,7 +45,7 @@ from . import util
 #                                 greater_is_better=True)
 
 
-def load_data(fname='data/interp5_data.pkl'):
+def load_data(fname='data/interp6_data.pkl'):
     data = joblib.load(fname, mmap_mode='r')
     return data
 
@@ -103,7 +104,7 @@ def cross_val(args):
 
 def train_test(args):
     """Run train-test experiment. """
-    data = load_data('data/interp6_data.pkl')
+    data = load_data(args['--data'])
     X = data['X_train']
     y = data['y_train']
 
