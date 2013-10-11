@@ -103,7 +103,7 @@ def cross_val(args):
 
 def train_test(args):
     """Run train-test experiment. """
-    data = load_data('data/data.pkl')
+    data = load_data('data/interp6_data.pkl')
     X = data['X_train']
     y = data['y_train']
 
@@ -117,12 +117,12 @@ def train_test(args):
     X_train, y_train = X[:offset], y[:offset]
     X_test, y_test = X[offset:], y[offset:]
 
-    est = Ridge(alpha=1.0, normalize=True)
-    # est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=6,
-    #                                 min_samples_leaf=5, learning_rate=0.02,
-    #                                 max_features=33, random_state=1,
-    #                                 subsample=1.0,
-    #                                 loss='lad')
+    # est = Ridge(alpha=1.0, normalize=True)
+    est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=6,
+                                    min_samples_leaf=5, learning_rate=0.02,
+                                    max_features=33, random_state=1,
+                                    subsample=1.0,
+                                    loss='lad')
 
     model_cls = MODELS[args['<model>']]
     model = model_cls(est=est,

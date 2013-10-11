@@ -8,10 +8,23 @@ import sys
 from time import time
 import numpy as np
 import scipy
+import IPython
+
+from scipy.interpolate import RectBivariateSpline, LinearNDInterpolator
 
 from sklearn.base import TransformerMixin, BaseEstimator
 from sklearn.linear_model import Ridge
 from sklearn.gaussian_process import GaussianProcess
+
+
+class LinearInterpolator(BaseEstimator):
+
+    def fit(self, x, y):
+        self.intp = LinearNDInterpolator(x, y)
+        return self
+
+    def predict(self, x):
+        return self.intp(x)
 
 
 class Interpolate(TransformerMixin, BaseEstimator):
@@ -32,6 +45,7 @@ class Interpolate(TransformerMixin, BaseEstimator):
     est = Ridge(normalize=True, alpha=0.1)
     use_nugget = False
     use_mse = False
+    grid_mode = False
 
     def __init__(self, flatten=False):
         self.flatten = flatten
@@ -52,7 +66,9 @@ class Interpolate(TransformerMixin, BaseEstimator):
 
     def transform(self, X, y=None):
         x = self._grid_data()
-        x_test = X.station_info[:, [1, 0, 2]]
+        lon = np.unique(x[:, 0])
+        lat = np.unique(x[:, 1])
+        x_test = X.station_info[:, [1, 0, 2]]  # lon, lat, elev
         n_stations = X.station_info.shape[0]
 
         X_nm = X.nm
@@ -67,8 +83,11 @@ class Interpolate(TransformerMixin, BaseEstimator):
             for f in range(n_fx):
                 for e in range(n_ens):
                     for h in range(n_hour):
-                        y = X_nm[d, f, e, h].ravel()
-                        est.fit(x, y)
+                        y = X_nm[d, f, e, h]
+                        if self.grid_mode:
+                            est.fit((lon, lat), y)
+                        else:
+                            est.fit(x, y.ravel())
                         if self.use_mse:
                             c_pred, c_sigma2 = est.predict(x_test, eval_MSE=True)
                             sigma2[d, f, e, h] = c_sigma2
@@ -96,6 +115,27 @@ class Kringing(Interpolate):
     use_mse = False
 
 
+class SplineEstimator(object):
+
+    def fit(self, x, y):
+        self.lut = RectBivariateSpline(x[1], x[0], y)
+        return self
+
+    def predict(self, X):
+        return self.lut.ev(X[:, 1], X[:, 0])
+
+
+class Spline(Interpolate):
+
+    est = SplineEstimator()
+    grid_mode = True
+
+
+class Linear(Interpolate):
+
+    est = LinearInterpolator()
+
+
 class MultivariateNormal(object):
 
     def __init__(self):
@@ -113,7 +153,9 @@ def transform_data():
 
     data = load_data('data/data.pkl')
 
-    kringing = Kringing()
+    #kringing = Kringing()
+    #kringing = Spline()
+    kringing = Linear()
     print('_' * 80)
     print(kringing)
     print
@@ -129,7 +171,8 @@ def transform_data():
 
     print
     print('dumping data')
-    joblib.dump(data, 'data/interp5_data.pkl')
+    joblib.dump(data, 'data/interp7_data.pkl')
+    IPython.embed()
 
 
 def benchmark():
@@ -230,44 +273,46 @@ def inspect():
     ## n_lat, n_lon = y_train.shape
     ## m = np.mgrid[0:n_lat:0.5, 0:n_lon:0.5]
 
-
-
     grid = Dataset('data/gefs_elevations.nc', 'r')
     lon = np.unique(grid.variables['longitude'][:] - 360)
     lat = np.unique(grid.variables['latitude'][:])
 
     # take a grid
-    G = X.nm[0, 0, 0, 3]
+    for fx_id in range(15):
+        G = X.nm[0, fx_id, 0, 3]
 
-    new_lats = np.linspace(lat.min(), lat.max(), 10 * lat.shape[0])
-    new_lons = np.linspace(lon.min(), lon.max(), 10 * lon.shape[0])
-    new_lats, new_lons = np.meshgrid(new_lats, new_lons)
+        new_lats = np.linspace(lat.min(), lat.max(), 10 * lat.shape[0])
+        new_lons = np.linspace(lon.min(), lon.max(), 10 * lon.shape[0])
+        new_lats, new_lons = np.meshgrid(new_lats, new_lons)
 
-    from scipy.interpolate import RectBivariateSpline
-    lut = RectBivariateSpline(lat, lon, G)
+        x = Interpolate._grid_data()[:, [1, 0]]  # lat, lon
+        y = G
+        fig, ([ax1, ax2, ax3, ax4]) = plt.subplots(4, 1)
+        plt.title('Feature %d' % fx_id)
+        ax1.imshow(G, interpolation='none')
 
-    G_i = lut.ev(new_lats.ravel(),
-                 new_lons.ravel()).reshape((10 * lon.shape[0],
-                                            10 * lat.shape[0])).T
+        est = GaussianProcess(corr='squared_exponential', theta0=(2.0, 4.0))
+        est.fit(x, y.ravel())
+        G = est.predict(np.c_[new_lats.ravel(),
+                              new_lons.ravel()]).reshape((10 * lon.shape[0],
+                                                          10 * lat.shape[0])).T
+        ax2.imshow(G, interpolation='none')
+        est = SplineEstimator()
+        lon = np.unique(x[:, 1])
+        lat = np.unique(x[:, 0])
+        est.fit((lon, lat), y)
+        G = est.predict(np.c_[new_lons.ravel(),
+                              new_lats.ravel()]).reshape((10 * lon.shape[0],
+                                                          10 * lat.shape[0])).T
+        ax3.imshow(G, interpolation='none')
 
+        est = LinearInterpolator()
+        est.fit(x, y.ravel())
+        G = est.predict(np.c_[new_lats.ravel(),
+                              new_lons.ravel()]).reshape((10 * lon.shape[0],
+                                                          10 * lat.shape[0])).T
+        ax4.imshow(G, interpolation='none')
 
-    x = Interpolate._grid_data()[:, [1, 0]]
-    y = G.ravel()
-    est = GaussianProcess(corr='squared_exponential',
-                          theta0=(2.0))
-    est.fit(x, y)
-    G_gp = est.predict(np.c_[new_lats.ravel(),
-                             new_lons.ravel()]).reshape((10 * lon.shape[0],
-                                                 10 * lat.shape[0])).T
-
-    fig, ([ax1, ax2, ax3]) = plt.subplots(3, 1)
-    ax1.imshow(G, interpolation='none')
-    ax2.imshow(G_i, interpolation='none')
-    ax3.imshow(G_gp, interpolation='none')
-
-
-
-    import IPython
     IPython.embed()
 
 
