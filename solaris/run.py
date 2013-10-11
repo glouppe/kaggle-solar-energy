@@ -16,7 +16,8 @@ Options:
   --verbose=LEVEL  Verbosity level [default: 2].
   --n_jobs=N_JOBS  Number of CPUs [default: 1].
   --scaley      Standardize Y before fit.
-  --err-analysis   Show error analysis report
+  --err-analysis   Show error analysis report.
+  --data=FILE   Data file to be used [default: ./data/interp6_data.pkl].
 """
 import numpy as np
 import pandas as pd
@@ -44,7 +45,7 @@ from . import util
 #                                 greater_is_better=True)
 
 
-def load_data(fname='data/interp5_data.pkl'):
+def load_data(fname='data/interp6_data.pkl'):
     data = joblib.load(fname, mmap_mode='r')
     return data
 
@@ -61,7 +62,7 @@ def _cross_val(model, X, y, train, test):
 
 def cross_val(args):
     """Run 5-fold cross-validation. """
-    data = load_data()
+    data = load_data(args['--data'])
     X = data['X_train']
     y = data['y_train']
 
@@ -103,7 +104,7 @@ def cross_val(args):
 
 def train_test(args):
     """Run train-test experiment. """
-    data = load_data('data/interp6_data.pkl')
+    data = load_data(args['--data'])
     X = data['X_train']
     y = data['y_train']
 
@@ -126,9 +127,9 @@ def train_test(args):
 
     model_cls = MODELS[args['<model>']]
     model = model_cls(est=est,
-                      #with_stationinfo=True,
-                      #with_date=True, with_solar=False,
-                      #with_mask=True, with_stationid=False,
+                      with_stationinfo=True,
+                      with_date=True, with_solar=False,
+                      with_mask=True, with_stationid=False,
                       #intp_blocks=('nm_intp', 'nmft_intp', ),
                       )
 
@@ -173,6 +174,7 @@ def train_test(args):
     if args['--err-analysis']:
         # reread test data because has been transformed inplace
         X_test, y_test = X[offset:], y[offset:]
+        mask = util.clean_missing_labels(y_test)
         err_analysis(pred, y_test.copy(), X_test=X_test, mask=mask)
 
     import IPython
@@ -185,7 +187,7 @@ def grid_search(args):
 
 def submit(args):
     """Run train-test experiment. """
-    data = load_data()
+    data = load_data(args['--data'])
     X_train = data['X_train']
     y_train = data['y_train']
 
