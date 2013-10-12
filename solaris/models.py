@@ -324,8 +324,6 @@ class KringingModel(BaseEstimator, RegressorMixin):
         The blocks of X that are used to create the features; defaults
         to interpolated parameters, functional transformation, and
         standard deviation of intp.
-    with_global : bool
-        Whether or not to include global features
     with_stationinfo : bool
         Whether or not to include station lat, lon, and elev
     with_date : bool
@@ -335,19 +333,14 @@ class KringingModel(BaseEstimator, RegressorMixin):
     with_mask : bool
         Whether to exclude samples that have been imputed by the organizers
         (see utils.mask_missing_values).
-    with_stationid : bool
-        Whether to include a one-hot encoding of the stationids.
 
     """
 
     def __init__(self, est, intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
-                 with_global=False, with_stationinfo=True, with_date=True,
-                 with_solar=False, with_mask=False,
-                 with_stationid=False):
+                 with_stationinfo=True, with_date=True,
+                 with_solar=False, with_mask=False):
         self.est = est
         self.intp_blocks = intp_blocks
-        self.with_global = with_global
-        self.with_stationinfo = with_stationinfo
         self.with_date = with_date
         self.with_solar = with_solar
         self.with_mask = with_mask
@@ -355,14 +348,6 @@ class KringingModel(BaseEstimator, RegressorMixin):
 
     def fit(self, X_st, y):
         self.n_stations = y.shape[1]
-        if self.with_global:
-            self.rs_tf = ResampleTransformer()
-            self.rs_tf.fit(X_st)
-
-        if self.with_stationid:
-            stid = np.arange(98)
-            self.stid_lb = LabelBinarizer()
-            self.stid_lb.fit(stid)
 
         mask = None
         if self.with_mask:
@@ -422,12 +407,6 @@ class KringingModel(BaseEstimator, RegressorMixin):
                                      ))
         X_st = ft.transform(X_st)
 
-        if self.with_stationid:
-            stid = np.tile(self.stid_lb.classes_, n_days)
-            stid_enc = self.stid_lb.transform(stid)
-            out.append(stid_enc)
-            fx_names.extend(['stid_%d' % c for c in self.stid_lb.classes_])
-
         if self.with_solar:
             solar_tf = SolarTransformer()
             X_st = solar_tf.transform(X_st)
@@ -461,24 +440,6 @@ class KringingModel(BaseEstimator, RegressorMixin):
             out.append(date)
             fx_names.append('doy')
 
-        # ## transform station-info
-        if self.with_stationinfo:
-            stinfo = X_st.station_info
-            # add station id as col
-            #stinfo = np.c_[stinfo, np.arange(X_st.station_info.shape[0])]
-            stinfo = np.tile(stinfo, (n_days, 1))
-            out.append(stinfo)
-            fx_names.extend(['lat', 'lon', 'elev'])
-
-        ## transform encoding
-        if self.with_global:
-            X_st = self.rs_tf.transform(X_st)
-            print 'ResampleTransformer'
-            print X_st['nm_res'].shape
-            X_res = np.repeat(X_st.nm_res, self.n_stations, axis=0)
-            out.append(X_res)
-            fx_names.extend(['res_%d' % i for i in range(X_res.shape[1])])
-
         ## transform nm_intp to hourly features
         for b_name in self.intp_blocks:
             X = X_st[b_name]
@@ -508,6 +469,12 @@ class KringingModel(BaseEstimator, RegressorMixin):
         self.fx_names_ = fx_names
         print 'transform to shape: ', out.shape
         return out
+
+
+class EnsembleKringingModel(KringingModel):
+
+
+
 
 
 MODELS = {
