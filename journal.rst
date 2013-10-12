@@ -1413,3 +1413,34 @@ Ideas (Gilles):
       - add "wrapped" doy:
           (doy + offset) % 365 for offset = 90, 180, 270?
       - is there a feature for the hour of the measurement?
+
+
+
+12.10.2013
+^^^^^^^^^^
+
+Q: Is there variance in GBRT models? Yes! The following ones uses
+random_state=2 instead of 1 and improves accuracy.
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02, loss=lad,
+             max_depth=6, max_features=33, min_samples_leaf=5,
+             min_samples_split=2, n_estimators=2000, random_state=2,
+             subsample=1.0, verbose=1),
+       est__alpha=0.9, est__init=None, est__learning_rate=0.02,
+       est__loss=lad, est__max_depth=6, est__max_features=33,
+       est__min_samples_leaf=5, est__min_samples_split=2,
+       est__n_estimators=2000, est__random_state=2, est__subsample=1.0,
+       est__verbose=1,
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_date=True, with_global=False, with_mask=False,
+       with_solar=False, with_stationid=False, with_stationinfo=True)
+
+Without masking
+MAE:  1959680.30
+RMSE: 3064633.13
+R2: 0.84
+________________________________________________________________________________
+With masking
+MAE:  1913301.65
+RMSE: 2946062.64
+R2: 0.85
