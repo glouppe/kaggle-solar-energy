@@ -117,11 +117,11 @@ def train_test(args):
     del y
     gc.collect()
 
-    #est = Ridge(alpha=1.0, normalize=True)
+    est = Ridge(alpha=1.0, normalize=True)
     #est = RidgeCV(alphas=10.0 ** np.arange(-4, 3, 1), normalize=True)
-    est = GradientBoostingRegressor(n_estimators=500, verbose=1, max_depth=6,
+    est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=6,
                                     min_samples_leaf=9, learning_rate=0.02,
-                                    max_features=10, random_state=1,
+                                    max_features=33, random_state=1,
                                     #subsample=0.5,
                                     loss='lad')
 
@@ -130,7 +130,7 @@ def train_test(args):
                       with_stationinfo=True,
                       with_date=True, with_solar=False,
                       with_mask=False,
-                      intp_blocks=('nm_intp', ), #'nmft_intp'),
+                      intp_blocks=('nm_intp', 'nmft_intp'),
                       )
 
     print('_' * 80)
@@ -193,16 +193,18 @@ def submit(args):
 
     X_test = data['X_test']
 
-    est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=7,
-                                    min_samples_leaf=9, learning_rate=0.02,
-                                    max_features=20, random_state=1,
-                                    subsample=0.5,
-                                    loss='lad')
+    # est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=6,
+    #                                 min_samples_leaf=9, learning_rate=0.02,
+    #                                 max_features=20, random_state=1,
+    #                                 subsample=0.5,
+    #                                 loss='lad')
+    #est = Ridge(alpha=1.0, normalize=True)
 
     model_cls = MODELS[args['<model>']]
     model = model_cls(est=est, with_stationinfo=True,
-                      with_date=True, with_solar=True,
-                      with_mask=True)
+                      with_date=True, with_solar=False,
+                      intp_blocks=('nm_intp', 'nmft_intp'),
+                      with_mask=False)
 
     print('_' * 80)
     print('Submit')
@@ -228,7 +230,7 @@ def submit(args):
     stid = pd.read_csv('data/station_info.csv')['stid']
     out = pd.DataFrame(index=date_idx, columns=stid, data=pred)
     out.index.name = 'Date'
-    out.to_csv('hk_14.csv')
+    out.to_csv('hk_15.csv')
     import IPython
     IPython.embed()
 

@@ -495,6 +495,27 @@ class PertubedKrigingModel(KringingModel):
         return pred
 
 
+class PertubedPredictionKrigingModel(KringingModel):
+
+    ens_mean = False
+    n_pertubations = 4
+
+    def fit(self, X_st, y):
+        n_stations = X_st.nm_intp.shape[-1]
+        nm_intp = X_st.nm_intp[:, :, :, :98]
+        X_st['nm_intp'] = nm_intp
+        X_st.station_info = X_st.station_info[:98]
+        super(PertubedPredictionKrigingModel, self).fit(X_st, y)
+        self.n_stations = n_stations
+
+    def predict(self, X_st):
+        pred = super(PertubedPredictionKrigingModel, self).predict(X_st)
+        n_stations = self.n_stations / self.n_pertubations
+        pred = pred.reshape((X_st.shape[0], self.n_pertubations, n_stations))
+        pred = np.mean(pred, axis=1)
+        return pred
+
+
 class EnsembleKrigingModel(KringingModel):
 
     ens_mean = False
@@ -568,4 +589,5 @@ MODELS = {
     'kriging': KringingModel,
     'ensemble_kriging': EnsembleKrigingModel,
     'pertubed_kriging': PertubedKrigingModel,
+    'pertubed_pred_kriging': PertubedPredictionKrigingModel,
     }
