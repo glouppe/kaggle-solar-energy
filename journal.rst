@@ -1444,3 +1444,28 @@ With masking
 MAE:  1913301.65
 RMSE: 2946062.64
 R2: 0.85
+
+
+PertubedKrigingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02, loss=lad,
+             max_depth=6, max_features=10, min_samples_leaf=9,
+             min_samples_split=2, n_estimators=1000, random_state=1,
+             subsample=0.5, verbose=1),
+           est__alpha=0.9, est__init=None, est__learning_rate=0.02,
+           est__loss=lad, est__max_depth=6, est__max_features=10,
+           est__min_samples_leaf=9, est__min_samples_split=2,
+           est__n_estimators=1000, est__random_state=1, est__subsample=0.5,
+           est__verbose=1, intp_blocks=('nm_intp', 'nmft_intp'),
+           with_date=True, with_mask=False, with_solar=False,
+           with_stationinfo=None)
+
+
+Without masking
+MAE:  1981755.23
+RMSE: 3104136.39
+R2: 0.84
+
+________________________________________________________________________________
+With masking
+MAE:  1935107.09
+RMSE: 2986469.65
+R2: 0.85

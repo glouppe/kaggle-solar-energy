@@ -348,6 +348,7 @@ class KringingModel(BaseEstimator, RegressorMixin):
         self.with_date = with_date
         self.with_solar = with_solar
         self.with_mask = with_mask
+        self.with_stationinfo = with_stationinfo
 
     def fit(self, X_st, y):
         self.n_stations = y.shape[1]
@@ -443,6 +444,15 @@ class KringingModel(BaseEstimator, RegressorMixin):
             date = np.repeat(X_st.date, self.n_stations)[:, np.newaxis]
             out.append(date)
             fx_names.append('doy')
+
+        # ## transform station-info
+        if self.with_stationinfo:
+            stinfo = X_st.station_info
+            # add station id as col
+            #stinfo = np.c_[stinfo, np.arange(X_st.station_info.shape[0])]
+            stinfo = np.tile(stinfo, (n_days, 1))
+            out.append(stinfo)
+            fx_names.extend(['lat', 'lon', 'elev'])
 
         ## transform nm_intp to hourly features
         for b_name in self.intp_blocks:

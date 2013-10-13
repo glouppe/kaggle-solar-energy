@@ -48,7 +48,7 @@ class Interpolate(TransformerMixin, BaseEstimator):
     grid_mode = False
 
     pertubations = 0
-    pertubation_damping_factors = np.array([0.2, 0.2, 10.])
+    pertubation_damping_factors = np.array([0.1, 0.1, 10.])
 
     def __init__(self, flatten=False):
         self.flatten = flatten

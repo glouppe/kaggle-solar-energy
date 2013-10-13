@@ -117,12 +117,12 @@ def train_test(args):
     del y
     gc.collect()
 
-    est = Ridge(alpha=1.0, normalize=True)
+    #est = Ridge(alpha=1.0, normalize=True)
     #est = RidgeCV(alphas=10.0 ** np.arange(-4, 3, 1), normalize=True)
-    est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=6,
+    est = GradientBoostingRegressor(n_estimators=1, verbose=1, max_depth=6,
                                     min_samples_leaf=9, learning_rate=0.02,
-                                    max_features=33, random_state=1,
-                                    #subsample=0.5,
+                                    max_features=10, random_state=1,
+                                    subsample=1.0,
                                     loss='lad')
 
     model_cls = MODELS[args['<model>']]
