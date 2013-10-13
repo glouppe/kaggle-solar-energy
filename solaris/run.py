@@ -6,7 +6,7 @@ Usage:
   run cross_val <model> [options]
   run grid_search <model> [options]
   run submit <model> [options]
-  run inspect
+  run inspect [options]
   run -h | --help
   run --version
 
@@ -19,6 +19,7 @@ Options:
   --err-analysis   Show error analysis report.
   --data=FILE   Data file to be used [default: ./data/interp6_data.pkl].
 """
+import gc
 import numpy as np
 import pandas as pd
 
@@ -31,12 +32,12 @@ from sklearn.linear_model import RidgeCV
 from sklearn.linear_model import Ridge
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.tree import DecisionTreeRegressor
 from sklearn.dummy import DummyRegressor
 from sklearn import cross_validation
 from sklearn import metrics
 
 from .models import MODELS
-from .models import BaselineTransformer
 from .models import IndividualEstimator
 from .err_analysis import err_analysis
 from . import util
@@ -71,7 +72,6 @@ def cross_val(args):
     # X.station_info = X.station_info[:50]
 
     model_cls = MODELS[args['<model>']]
-    # est = RidgeCV(alphas=10.0 ** np.arange(-5, 1, 1), normalize=True)
     est = Ridge(alpha=1e-5, normalize=True)
 
     model = model_cls(est=est)
@@ -108,29 +108,29 @@ def train_test(args):
     X = data['X_train']
     y = data['y_train']
 
-    # just first 50 stations (otherwise too much)
-    ## y = y[:, :25]
-    ## X.station_info = X.station_info[:25]
-
     # no shuffle - past-future split
     offset = X.shape[0] * 0.5
     offset = 3287  # this is 1.1.2003
     X_train, y_train = X[:offset], y[:offset]
     X_test, y_test = X[offset:], y[offset:]
+    del X
+    del y
+    gc.collect()
 
-    # est = Ridge(alpha=1.0, normalize=True)
-    est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=6,
-                                    min_samples_leaf=5, learning_rate=0.02,
-                                    max_features=33, random_state=1,
-                                    subsample=1.0,
+    #est = Ridge(alpha=1.0, normalize=True)
+    #est = RidgeCV(alphas=10.0 ** np.arange(-4, 3, 1), normalize=True)
+    est = GradientBoostingRegressor(n_estimators=500, verbose=1, max_depth=6,
+                                    min_samples_leaf=9, learning_rate=0.02,
+                                    max_features=10, random_state=1,
+                                    #subsample=0.5,
                                     loss='lad')
 
     model_cls = MODELS[args['<model>']]
     model = model_cls(est=est,
                       with_stationinfo=True,
                       with_date=True, with_solar=False,
-                      with_mask=True, with_stationid=False,
-                      #intp_blocks=('nm_intp', 'nmft_intp', ),
+                      with_mask=False,
+                      intp_blocks=('nm_intp', ), #'nmft_intp'),
                       )
 
     print('_' * 80)
@@ -222,7 +222,7 @@ def submit(args):
     if args['--scaley']:
         pred = scaler.inverse_transform(pred)
 
-    data = load_data()
+    data = load_data(args['--data'])
     date_idx = data['X_test'].date
     date_idx = date_idx.map(lambda x: x.strftime('%Y%m%d'))
     stid = pd.read_csv('data/station_info.csv')['stid']
@@ -234,7 +234,7 @@ def submit(args):
 
 
 def inspect(args):
-    data = load_data()
+    data = load_data(args['--data'])
     X = data['X_train']
     y = data['y_train']
     import IPython

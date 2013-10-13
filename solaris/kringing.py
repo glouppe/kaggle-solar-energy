@@ -47,6 +47,9 @@ class Interpolate(TransformerMixin, BaseEstimator):
     use_mse = False
     grid_mode = False
 
+    pertubations = 0
+    pertubation_damping_factors = np.array([0.2, 0.2, 10.])
+
     def __init__(self, flatten=False):
         self.flatten = flatten
 
@@ -68,32 +71,63 @@ class Interpolate(TransformerMixin, BaseEstimator):
         x = self._grid_data()
         lon = np.unique(x[:, 0])
         lat = np.unique(x[:, 1])
-        x_test = X.station_info[:, [1, 0, 2]]  # lon, lat, elev
+
         n_stations = X.station_info.shape[0]
+        stat_info = X.station_info
+
+        if self.pertubations > 0:
+            print('Making %d pertubations to station infos' % self.pertubations)
+            rs = np.random.RandomState()
+            x_test_control = stat_info
+            stat_info = [x_test_control]
+            for i in range(self.pertubations):
+                x_pertub = (x_test_control + rs.randn(n_stations, 3) *
+                            self.pertubation_damping_factors)
+                stat_info.append(x_pertub)
+
+            n_stations = n_stations + (self.pertubations * n_stations)
+            station_info = np.vstack(stat_info)
+            assert station_info.shape[0] == n_stations
+
+        X.station_info = station_info
+
+        x_test = X.station_info[:, [1, 0, 2]]  # lon, lat, elev
 
         X_nm = X.nm
-        n_days, n_fx, n_ens, n_hour, n_lat, n_lon = X_nm.shape
+        #n_days, n_fx, n_ens, n_hour, n_lat, n_lon = X_nm.shape
 
-        pred = np.zeros((n_days, n_fx, n_ens, n_hour, n_stations))
+        X_nm = X_nm.mean(axis=2)
+        n_days, n_fx, n_hour, n_lat, n_lon = X_nm.shape
+
+        #n_days = 10  # FIXME
+
+        #pred = np.zeros((n_days, n_fx, n_ens, n_hour, n_stations),
+        #                dtype=np.float32)
+        pred = np.zeros((n_days, n_fx, n_hour, n_stations),
+                        dtype=np.float32)
         if self.use_mse:
-            sigma2 = np.zeros((n_days, n_fx, n_ens, n_hour, n_stations))
+            sigma2 = np.zeros((n_days, n_fx, n_ens, n_hour, n_stations),
+                              dtype=np.float32)
         est = self.est
+
         for d in range(n_days):
             t0 = time()
             for f in range(n_fx):
-                for e in range(n_ens):
-                    for h in range(n_hour):
-                        y = X_nm[d, f, e, h]
-                        if self.grid_mode:
-                            est.fit((lon, lat), y)
-                        else:
-                            est.fit(x, y.ravel())
-                        if self.use_mse:
-                            c_pred, c_sigma2 = est.predict(x_test, eval_MSE=True)
-                            sigma2[d, f, e, h] = c_sigma2
-                        else:
-                            c_pred = est.predict(x_test)
-                        pred[d, f, e, h] = c_pred
+                #for e in range(n_ens):
+                for h in range(n_hour):
+                    #y = X_nm[d, f, e, h] ## FIXME
+                    y = X_nm[d, f, h]
+                    if self.grid_mode:
+                        est.fit((lon, lat), y)
+                    else:
+                        est.fit(x, y.ravel())
+                    if self.use_mse:
+                        c_pred, c_sigma2 = est.predict(x_test, eval_MSE=True)
+                        sigma2[d, f, e, h] = c_sigma2
+                    else:
+                        c_pred = est.predict(x_test)
+                        #pred[d, f, e, h] = c_pred  # FIXME
+                        pred[d, f, h] = c_pred
             print('interpolate day: %d took %ds' % (d, time() - t0))
         if self.flatten:
             pred = pred.reshape((pred.shape[0], -1))
@@ -131,6 +165,11 @@ class Spline(Interpolate):
     grid_mode = True
 
 
+class PertubatedSpline(Spline):
+
+    pertubations = 3
+
+
 class Linear(Interpolate):
 
     est = LinearInterpolator()
@@ -154,7 +193,7 @@ def transform_data():
     data = load_data('data/data.pkl')
 
     #kringing = Kringing()
-    kringing = Spline()
+    kringing = PertubatedSpline()
 
     print('_' * 80)
     print(kringing)
@@ -171,7 +210,7 @@ def transform_data():
 
     print
     print('dumping data')
-    joblib.dump(data, 'data/interp6_data.pkl')
+    joblib.dump(data, 'data/interp7_data.pkl')
     IPython.embed()
 
 

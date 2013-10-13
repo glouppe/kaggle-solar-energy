@@ -2,6 +2,7 @@ import numpy as np
 
 from time import time
 from scipy import ndimage
+from collections import OrderedDict
 
 from sklearn.base import BaseEstimator
 from sklearn.base import RegressorMixin
@@ -13,6 +14,7 @@ from sklearn.preprocessing import LabelBinarizer
 from sklearn.pipeline import Pipeline
 
 from . import util
+from .sa import StructuredArray
 
 
 class ValueTransformer(BaseEstimator, TransformerMixin):
@@ -336,6 +338,8 @@ class KringingModel(BaseEstimator, RegressorMixin):
 
     """
 
+    ens_mean = True
+
     def __init__(self, est, intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
                  with_stationinfo=True, with_date=True,
                  with_solar=False, with_mask=False):
@@ -344,7 +348,6 @@ class KringingModel(BaseEstimator, RegressorMixin):
         self.with_date = with_date
         self.with_solar = with_solar
         self.with_mask = with_mask
-        self.with_stationid = with_stationid
 
     def fit(self, X_st, y):
         self.n_stations = y.shape[1]
@@ -386,10 +389,11 @@ class KringingModel(BaseEstimator, RegressorMixin):
             X_st.fx_name['nm_intp_sigma'] = map(lambda s: '%s_sigma' % s,
                                                 X_st.fx_name['nm'])
 
-        X_nm_intp = X_st['nm_intp']
-        # mean and std
-        X_st['nm_intp'] = X_nm_intp.mean(axis=2)
-        X_st['nm_intp_sigma'] = X_nm_intp.std(axis=2)
+        if self.ens_mean:
+            # mean and std
+            X_nm_intp = X_st['nm_intp']
+            X_st['nm_intp'] = X_nm_intp.mean(axis=2)
+            X_st['nm_intp_sigma'] = X_nm_intp.std(axis=2)
 
         ## transform function
         ft = FunctionTransformer(block='nm_intp', new_block='nmft_intp',
@@ -465,16 +469,94 @@ class KringingModel(BaseEstimator, RegressorMixin):
             X = X.reshape((np.prod(X.shape[:2]), -1))
             out.append(X)
 
+        for b in out:
+            print b.shape
         out = np.hstack(out)
         self.fx_names_ = fx_names
-        print 'transform to shape: ', out.shape
+        print('transform to shape: %s' % str(out.shape))
+        print('size of X in mb: %.2f' % (out.nbytes / 1024.0 / 1024.0))
         return out
 
 
-class EnsembleKringingModel(KringingModel):
+class PertubedKrigingModel(KringingModel):
+
+    ens_mean = False
+    n_pertubations = 4
+
+    def fit(self, X_st, y):
+        y = np.tile(y, (1, self.n_pertubations))
+        return super(PertubedKrigingModel, self).fit(X_st, y)
+
+    def predict(self, X_st):
+        pred = super(PertubedKrigingModel, self).predict(X_st)
+        n_stations = self.n_stations / self.n_pertubations
+        pred = pred.reshape((X_st.shape[0], self.n_pertubations, n_stations))
+        pred = pred.mean(axis=1)
+        return pred
 
 
+class EnsembleKrigingModel(KringingModel):
 
+    ens_mean = False
+
+    def transform_labels(self, y, n_ens):
+        y = np.tile(y, n_ens)
+        return y.ravel()
+
+    def transform(self, X):
+        nm_intp = X.nm_intp
+        nm_intp = nm_intp.swapaxes(1, 2)
+        n_days = nm_intp.shape[0]
+        n_ens = nm_intp.shape[1]
+        nm_intp = nm_intp.reshape((n_days * n_ens, ) +
+                                  nm_intp.shape[2:])
+
+        date = np.tile(X.date, n_ens)
+        station_info = X.station_info
+        fx_name = X.fx_name
+        lat = X.lat
+        lon = X.lon
+        X = StructuredArray(OrderedDict(nm_intp=nm_intp, date=date))
+        X.station_info = station_info
+        X.fx_name = fx_name
+        X.lat = lat
+        X.lon = lon
+        X = super(EnsembleKrigingModel, self).transform(X)
+        return X
+
+    def fit(self, X_st, y):
+        self.n_stations = y.shape[1]
+        self.n_ens = X_st.nm_intp.shape[2]
+        print('n_nes = %d' % self.n_ens)
+
+        mask = None
+        if self.with_mask:
+            mask = util.clean_missing_labels(y)
+
+        X = self.transform(X_st)
+        y = self.transform_labels(y, self.n_ens)
+        assert X.shape[0] == y.shape[0]
+
+        if mask is not None:
+            mask = self.transform_labels(mask)
+            print('remove masked samples: %d' % mask.sum())
+            y = y[~mask]
+            X = X[~mask]
+
+        print('_' * 80)
+        print('fitting estimator...')
+        print
+        self.est.fit(X, y)
+        return self
+
+    def predict(self, X):
+        n_days = X.shape[0]
+        X = self.transform(X)
+        pred = self.est.predict(X)
+        print pred.shape
+        pred = pred.reshape((n_days, self.n_ens, self.n_stations))
+        pred = pred.mean(axis=1)
+        return pred
 
 
 MODELS = {
@@ -483,5 +565,7 @@ MODELS = {
     #'dbn': DBNModel,
     #'local': LocalModel,
     'kringing': KringingModel,
-    'kriging': KringingModel
+    'kriging': KringingModel,
+    'ensemble_kriging': EnsembleKrigingModel,
+    'pertubed_kriging': PertubedKrigingModel,
     }
