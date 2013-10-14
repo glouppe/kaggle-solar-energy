@@ -119,18 +119,18 @@ def train_test(args):
 
     #est = Ridge(alpha=1.0, normalize=True)
     #est = RidgeCV(alphas=10.0 ** np.arange(-4, 3, 1), normalize=True)
-    est = GradientBoostingRegressor(n_estimators=1, verbose=1, max_depth=6,
-                                    min_samples_leaf=9, learning_rate=0.02,
-                                    max_features=10, random_state=1,
-                                    subsample=1.0,
+    est = GradientBoostingRegressor(n_estimators=500, verbose=1, max_depth=6,
+                                    min_samples_leaf=9, learning_rate=0.04,
+                                    max_features=33, random_state=1,
+                                    subsample=.2,
                                     loss='lad')
 
     model_cls = MODELS[args['<model>']]
     model = model_cls(est=est,
-                      with_stationinfo=True,
-                      with_date=True, with_solar=False,
-                      with_mask=False,
-                      intp_blocks=('nm_intp', 'nmft_intp'),
+                      #with_stationinfo=True,
+                      #with_date=True, with_solar=False,
+                      #with_mask=False,
+                      #intp_blocks=('nm_intp', 'nmft_intp'),
                       )
 
     print('_' * 80)

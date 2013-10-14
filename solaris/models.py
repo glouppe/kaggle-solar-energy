@@ -1,4 +1,5 @@
 import numpy as np
+import gc
 
 from time import time
 from scipy import ndimage
@@ -12,6 +13,7 @@ from sklearn.base import clone
 
 from sklearn.preprocessing import LabelBinarizer
 from sklearn.pipeline import Pipeline
+from sklearn.pipeline import FeatureUnion
 
 from . import util
 from .sa import StructuredArray
@@ -442,7 +444,7 @@ class KringingModel(BaseEstimator, RegressorMixin):
             date_tf = DateTransformer('doy')
             X_st = date_tf.transform(X_st)
             date = np.repeat(X_st.date, self.n_stations)[:, np.newaxis]
-            out.append(date)
+            out.append(date.astype(np.float32))
             fx_names.append('doy')
 
         # ## transform station-info
@@ -451,7 +453,7 @@ class KringingModel(BaseEstimator, RegressorMixin):
             # add station id as col
             #stinfo = np.c_[stinfo, np.arange(X_st.station_info.shape[0])]
             stinfo = np.tile(stinfo, (n_days, 1))
-            out.append(stinfo)
+            out.append(stinfo.astype(np.float32))
             fx_names.extend(['lat', 'lon', 'elev'])
 
         ## transform nm_intp to hourly features
@@ -464,7 +466,7 @@ class KringingModel(BaseEstimator, RegressorMixin):
                              for fx in X_st.fx_name[b_name]
                              for h in range(X.shape[-2])])
             X = X.reshape((np.prod(X.shape[:2]), -1))
-            out.append(X)
+            out.append(X.astype(np.float32))
 
         ## transform to mean features
         for b_name in self.intp_blocks:
@@ -477,13 +479,14 @@ class KringingModel(BaseEstimator, RegressorMixin):
             fx_names.extend(['_'.join((b_name, fx, 'm'))
                              for fx in X_st.fx_name[b_name]])
             X = X.reshape((np.prod(X.shape[:2]), -1))
-            out.append(X)
+            out.append(X.astype(np.float32))
 
         for b in out:
             print b.shape
         out = np.hstack(out)
         self.fx_names_ = fx_names
         print('transform to shape: %s' % str(out.shape))
+        print('dtype: %s' % out.dtype)
         print('size of X in mb: %.2f' % (out.nbytes / 1024.0 / 1024.0))
         return out
 
@@ -590,11 +593,241 @@ class EnsembleKrigingModel(KringingModel):
         return pred
 
 
+class LocalTransformer(BaseEstimator, TransformerMixin):
+
+    def __init__(self, k=2, fxs=None, hour_mean=True, aux=True, ens_std=False,
+                 hour_std=False, stid_enc=False):
+        self.k = k
+        self.hour_mean = hour_mean
+        self.fxs = fxs
+        self.aux = aux
+        self.ens_std = ens_std
+        self.hour_std = hour_std
+        self.stid_enc = stid_enc
+
+    def fit(self, X, y=None):
+        assert y is not None
+        n_stations = y.shape[1]
+        self.n_stations = n_stations
+        assert X.station_info.shape[0] == self.n_stations
+
+        stid = np.arange(98)
+        self.stid_lb = LabelBinarizer()
+        self.stid_lb.fit(stid)
+        return self
+
+    @classmethod
+    def transform_labels(cls, y):
+        y = y.ravel(1)
+        return y
+
+    # @profile
+    def transform(self, X, y=None):
+        k = self.k
+        n_days = X.shape[0]
+
+        ll_coord = X.station_info[:, 0:2]
+        lat_idx = np.searchsorted(X.lat, ll_coord[:, 0])
+        lon_idx = np.searchsorted(X.lon, ll_coord[:, 1] + 360)
+
+        n_fx = 0
+        for b_name, X_b in X.blocks.iteritems():
+            old_n_fx = n_fx
+            if self.fxs is not None and b_name not in self.fxs:
+                continue
+            if X_b.ndim == 6:
+                if self.fxs is not None and b_name in self.fxs:
+                    n_fxs = len(self.fxs[b_name])
+                else:
+                    n_fxs = X_b.shape[1]
+                shapes = [n_fxs]
+                if not self.hour_mean:
+                    shapes.append(X_b.shape[3])
+                shapes.extend([k * 2 + 1, k * 2 + 1])
+                print b_name, shapes
+                n_fx += np.prod(shapes)
+            elif X_b.ndim == 1:
+                n_fx += 1
+            elif X_b.ndim == 2:
+                n_fx += X_b.shape[1]
+            else:
+                raise ValueError('%s has wrong dim: %d' % (b_name, X_b.ndim))
+            print 'block: %s as %d n_fx' % (b_name, n_fx - old_n_fx)
+
+        if self.stid_enc:
+            n_fx += len(self.stid_lb.classes_)
+
+        # num of features - based on blocks + station info (5 fx)
+        if self.aux:
+            n_fx = n_fx + 3 + 2
+
+        X_p = np.zeros((n_days * self.n_stations, n_fx), dtype=np.float32)
+        offset = 0
+
+        for bid, b_name in enumerate(X.blocks):
+            if self.fxs is not None and b_name not in self.fxs:
+                continue
+            print 'localizing block: %s' % b_name
+            X_b = X[b_name]
+
+            # select fx if fxs given
+            if self.fxs is not None and self.fxs.get(b_name, None):
+                fxs = self.fxs[b_name]
+                idx = [i for i, name in enumerate(X.fx_name[b_name])
+                       if name in fxs]
+                X_b = X_b[:, idx]
+
+            if X_b.ndim == 6:
+                # FIXME over hours
+                if self.hour_mean:
+                    X_b = np.mean(X_b, axis=3)
+                elif self.hour_std:
+                    X_b = np.std(X_b, axis=3)
+
+                # over ensembles
+                if self.ens_std:
+                    X_b = np.std(X_b, axis=2)
+                else:
+                    X_b = np.mean(X_b, axis=2)
+
+                offset_inc = 0
+                for i in range(self.n_stations):
+                    lai, loi = lat_idx[i], lon_idx[i]
+                    if self.hour_mean:
+                        blk = X_b[:, :, lai - k:lai + k + 1,
+                                  loi - k: loi + k + 1]
+                    else:
+                        blk = X_b[:, :, :, lai - k:lai + k + 1,
+                                  loi - k: loi + k + 1]
+                    blk = blk.reshape((blk.shape[0], np.prod(blk.shape[1:])))
+                    X_p[i * n_days:((i+1) * n_days),
+                        offset:(offset + blk.shape[1])] = blk
+                    if i == 0:
+                        offset_inc = blk.shape[1]
+                    del blk
+                    gc.collect()
+
+                offset += offset_inc
+
+            elif X_b.ndim == 1 or (X_b.ndim == 2 and X_b.shape[1] == 1):
+                X_p[:, offset:offset + 1] = np.tile(X_b.ravel(),
+                                                    self.n_stations)[:, np.newaxis]
+                offset += 1
+            elif X_b.ndim == 2:
+                # FIXME wrong stitching together stuff
+                print('block: %s will be repeated for each station' % b_name)
+                width = X_b.shape[1]
+                X_p[:, offset:offset + width] = np.tile(X_b, (self.n_stations, 1))
+                #IPython.embed()
+                offset += width
+            else:
+                raise ValueError('%s has wrong dim: %d' % (b_name, X_b.ndim))
+
+        if self.stid_enc:
+            stid = np.repeat(self.stid_lb.classes_, n_days)
+            stid_enc = self.stid_lb.transform(stid)
+            X_p[:, offset:(offset + stid_enc.shape[1])] = stid_enc
+            offset += stid_enc.shape[1]
+
+        if self.aux:
+            # lat, lon, elev
+            X_p[:, offset:(offset + 3)] = np.repeat(X.station_info, n_days, axis=0)
+            offset += 3
+
+            # compute pos of station within grid cell (in degree lat lon)
+            lat_idx = np.repeat(lat_idx, n_days)
+            lon_idx = np.repeat(lon_idx, n_days)
+            # offset - 3 is station lat
+            X_p[:, offset] = (X.lat[lat_idx] -
+                              X_p[:, offset - 3])
+            # offset - 2 is station lon
+            X_p[:, offset + 1] = ((X.lon[lon_idx] - 360.) -
+                                  X_p[:, offset - 2])
+        #IPython.embed()
+        print 'X_p.shape: ', X_p.shape
+        return X_p
+
+
+class LocalModel(BaseEstimator, RegressorMixin):
+
+    def __init__(self, est, clip=False):
+        self.est = est
+        self.clip=clip
+        steps = [
+            ('date', DateTransformer(op='doy')),
+            ('ft', FunctionTransformer(block='nm', new_block='nmft',
+                                       ops=(
+                                           ('uswrf_sfc', '/', 'dswrf_sfc'),
+                                           ('ulwrf_sfc', '/', 'dlwrf_sfc'),
+                                           ('ulwrf_sfc', '/', 'uswrf_sfc'),
+                                           ('dlwrf_sfc', '/', 'dswrf_sfc'),
+                                           ('tmax_2m', '-', 'tmin_2m'),
+                                           ('tmax_2m', '/', 'tmin_2m'),
+                                           ('tmp_2m', '-', 'tmp_sfc'),
+                                           ('tmp_2m', '/', 'tmp_sfc'),
+                                           ('apcp_sfc', '-', 'pwat_eatm'),
+                                           ('apcp_sfc', '/', 'pwat_eatm'),
+                                                ))),
+
+                 ]
+        self.pipeline = Pipeline(steps)
+
+        l1 = LocalTransformer(hour_mean=True, k=1)
+
+        self.fu = FeatureUnion([('hm_k1', l1),
+                                #('h_k2_dswrf_sfc', l2),
+                                #('es_k1', l3),
+                                #('hs_k1', l4),
+                                #('g_k5_3fx', g1),
+                                ])
+
+    def transform(self, X, y):
+        self.n_stations = y.shape[1]
+        ## FIXME hack
+        X = self.pipeline.transform(X)
+        if self.use_enc:
+            X = self.enc.transform(X)
+        self.fu.fit(X, y)
+        X = self.fu.transform(X)
+        y = LocalTransformer.transform_labels(y)
+        return X, y
+
+    def fit(self, X, y, **kw):
+        self.n_stations = y.shape[1]
+        X = self.pipeline.transform(X)
+        self.fu.fit(X, y)
+        X = self.fu.transform(X)
+        y = LocalTransformer.transform_labels(y)
+        assert X.shape[0] == y.shape[0]
+        print 'LocalModel: fit est on X: %s' % str(X.shape)
+        t0 = time()
+        self.est.fit(X, y)
+        print('Est fitted in %.2fm' % ((time() - t0) / 60.))
+        if self.clip:
+            self.clip_high = y.max()
+            self.clip_low = y.min()
+        return self
+
+    def predict(self, X):
+        n_days = X.shape[0]
+        X = self.pipeline.transform(X)
+        if self.use_enc:
+            X = self.enc.transform(X)
+        X = self.fu.transform(X)
+        pred = self.est.predict(X)
+        print X.shape, pred.shape
+        # reshape - first read days (per station)
+        pred = pred.reshape((self.n_stations, n_days)).T
+        if self.clip:
+            pred = np.clip(pred, self.clip_low, self.clip_high)
+        return pred
+
+
 MODELS = {
     'baseline': Baseline,
     #'ensemble': EnsembledRegressor,
     #'dbn': DBNModel,
-    #'local': LocalModel,
+    'local': LocalModel,
     'kringing': KringingModel,
     'kriging': KringingModel,
     'ensemble_kriging': EnsembleKrigingModel,
