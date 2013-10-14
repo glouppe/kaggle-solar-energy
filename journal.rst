@@ -1469,3 +1469,68 @@ With masking
 MAE:  1935107.09
 RMSE: 2986469.65
 R2: 0.85
+
+
+________________________________________________________________________________
+
+EnsembleKrigingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.04, loss=lad,
+             max_depth=6, max_features=33, min_samples_leaf=9,
+             min_samples_split=2, n_estimators=500, random_state=1,
+             subsample=0.2, verbose=1),
+           est__alpha=0.9, est__init=None, est__learning_rate=0.04,
+           est__loss=lad, est__max_depth=6, est__max_features=33,
+           est__min_samples_leaf=9, est__min_samples_split=2,
+           est__n_estimators=500, est__random_state=1, est__subsample=0.2,
+           est__verbose=1, intp_blocks=('nm_intp', 'nmft_intp'),
+           with_date=True, with_mask=False, with_solar=False,
+           with_stationinfo=True)
+
+
+n_nes = 11
+
+transform to shape: (3543386, 154)
+dtype: float32
+size of X in mb: 2081.61
+________________________________________________________________________________
+fitting estimator...
+
+      Iter       Train Loss      OOB Improve   Remaining Time
+         1     6676791.1588      215820.6106         1938.11m
+         2     6470898.3519      209119.1461         1386.85m
+         3     6278283.1402      199989.8206         1202.14m
+         4     6078670.9198      192223.0153         1109.00m
+         5     5897917.1003      181538.4845         1050.97m
+         6     5720301.9820      175039.3000         1011.32m
+         7     5557389.6499      164459.1493          982.20m
+         8     5388759.2654      164213.0084          962.65m
+         9     5241261.0758      153626.6735          946.51m
+        10     5090505.7371      144907.6095          930.70m
+        20     3924466.8644       97192.9144          844.55m
+        30     3208946.8315       54664.3455          772.27m
+        40     2769488.7391       34763.0937          729.23m
+        50     2501605.6560       19688.3076          697.99m
+        60     2353711.1177       12184.4013          672.18m
+        70     2252526.4211        7368.7132          649.64m
+        80     2201595.0008        4771.9175          629.23m
+        90     2166232.2779        2679.4130          610.27m
+       100     2139461.2452        2205.7733          592.13m
+       200     2031123.5678         498.0011          431.68m
+       300     1983349.3872         259.1840          281.38m
+       400     1949273.8976         344.0977          138.05m
+       500     1920733.0446         254.6645            0.00s
+model.fit took 708.77068682m
+[FT] nr new features: 10
+transform to shape: (1968428, 154)
+dtype: float32
+size of X in mb: 1156.38
+(1968428,)
+Without masking
+MAE:  1967450.65
+RMSE: 3071018.65
+R2: 0.84
+
+________________________________________________________________________________
+With masking
+MAE:  1921013.72
+RMSE: 2952923.20
+R2: 0.85
