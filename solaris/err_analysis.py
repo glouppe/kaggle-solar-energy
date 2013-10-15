@@ -102,7 +102,4 @@ def err_analysis(y_pred, y_test=None, X_test=None, station_info=None, date=None,
         station_residuals.iloc[:, stid].plot(ax=ax)
         ax.set_title('Station id %d' % stid)
 
-    import IPython
-    IPython.embed()
-
     plt.show()
