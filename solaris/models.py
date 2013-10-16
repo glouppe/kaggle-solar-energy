@@ -417,6 +417,9 @@ class KringingModel(BaseEstimator, RegressorMixin):
                                      ('tmp_2m', '/', 'tmp_sfc'),
                                      ('apcp_sfc', '-', 'pwat_eatm'),
                                      ('apcp_sfc', '/', 'pwat_eatm'),
+
+                                     ('uswrf_sfc', '/', 'dlwrf_sfc'),
+                                     ('ulwrf_sfc', '/', 'dswrf_sfc'),
                                      ))
         X_st = ft.transform(X_st)
 
@@ -487,8 +490,6 @@ class KringingModel(BaseEstimator, RegressorMixin):
             X = X.reshape((np.prod(X.shape[:2]), -1))
             out.append(X.astype(np.float32))
 
-        for b in out:
-            print b.shape
         out = np.hstack(out)
         self.fx_names_ = fx_names
         print('transform to shape: %s' % str(out.shape))

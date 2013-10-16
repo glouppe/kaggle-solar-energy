@@ -121,6 +121,7 @@ class Interpolate(TransformerMixin, BaseEstimator):
             for f in range(n_fx):
                 #for e in range(n_ens):
                 for h in range(n_hour):
+                    #print d, f, h
                     #y = X_nm[d, f, e, h] ## FIXME
                     y = X_nm_m[d, f, h]
                     if self.use_nugget:
@@ -153,8 +154,10 @@ class Interpolate(TransformerMixin, BaseEstimator):
 
 class Kringing(Interpolate):
 
+    # est = GaussianProcess(corr='squared_exponential',
+    #                       theta0=(7.0, 3.0, 3.0))
     est = GaussianProcess(corr='squared_exponential',
-                          theta0=(7.0, 3.0, 3.0))
+                          theta0=(1.0, 0.4, 1.0))  # lon, lat, elev
     use_nugget = True
     use_mse = True
 
@@ -205,6 +208,9 @@ def transform_data():
     kringing = Kringing()
     #kringing = PertubatedSpline()
 
+    data['description'] = '%r: %r' % (kringing, kringing.est)
+    print data['description']
+
     print('_' * 80)
     print(kringing)
     print
@@ -220,7 +226,7 @@ def transform_data():
 
     print
     print('dumping data')
-    joblib.dump(data, 'data/interp4_data.pkl')
+    joblib.dump(data, 'data/interp9_data.pkl')
     IPython.embed()
 
 
@@ -402,6 +408,6 @@ def inspect():
 
 
 if __name__ == '__main__':
-    #transform_data()
+    transform_data()
     #benchmark()
-    inspect()
+    #inspect()

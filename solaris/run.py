@@ -229,7 +229,7 @@ def submit(args):
     stid = pd.read_csv('data/station_info.csv')['stid']
     out = pd.DataFrame(index=date_idx, columns=stid, data=pred)
     out.index.name = 'Date'
-    out.to_csv('hk_14.csv')
+    out.to_csv('hk_10_calibrate.csv')
     import IPython
     IPython.embed()
 
