@@ -595,7 +595,7 @@ class EnsembleKrigingModel(KringingModel):
 
 class LocalTransformer(BaseEstimator, TransformerMixin):
 
-    def __init__(self, k=2, fxs=None, hour_mean=True, aux=True, ens_std=False,
+    def __init__(self, k=1, fxs=None, hour_mean=True, aux=True, ens_std=False,
                  hour_std=False, stid_enc=False):
         self.k = k
         self.hour_mean = hour_mean
@@ -643,7 +643,7 @@ class LocalTransformer(BaseEstimator, TransformerMixin):
                 shapes = [n_fxs]
                 if not self.hour_mean:
                     shapes.append(X_b.shape[3])
-                shapes.extend([k * 2 + 1, k * 2 + 1])
+                shapes.extend([k * 2, k * 2])
                 print b_name, shapes
                 n_fx += np.prod(shapes)
             elif X_b.ndim == 1:
@@ -693,12 +693,12 @@ class LocalTransformer(BaseEstimator, TransformerMixin):
                 offset_inc = 0
                 for i in range(self.n_stations):
                     lai, loi = lat_idx[i], lon_idx[i]
-                    if self.hour_mean:
-                        blk = X_b[:, :, lai - k:lai + k + 1,
-                                  loi - k: loi + k + 1]
+                    if (self.hour_mean or self.hour_std):
+                        blk = X_b[:, :, lai - k:lai + k,
+                                  loi - k: loi + k]
                     else:
-                        blk = X_b[:, :, :, lai - k:lai + k + 1,
-                                  loi - k: loi + k + 1]
+                        blk = X_b[:, :, :, lai - k:lai + k,
+                                  loi - k: loi + k]
                     blk = blk.reshape((blk.shape[0], np.prod(blk.shape[1:])))
                     X_p[i * n_days:((i+1) * n_days),
                         offset:(offset + blk.shape[1])] = blk
@@ -755,38 +755,34 @@ class LocalModel(BaseEstimator, RegressorMixin):
         self.clip=clip
         steps = [
             ('date', DateTransformer(op='doy')),
-            ('ft', FunctionTransformer(block='nm', new_block='nmft',
-                                       ops=(
-                                           ('uswrf_sfc', '/', 'dswrf_sfc'),
-                                           ('ulwrf_sfc', '/', 'dlwrf_sfc'),
-                                           ('ulwrf_sfc', '/', 'uswrf_sfc'),
-                                           ('dlwrf_sfc', '/', 'dswrf_sfc'),
-                                           ('tmax_2m', '-', 'tmin_2m'),
-                                           ('tmax_2m', '/', 'tmin_2m'),
-                                           ('tmp_2m', '-', 'tmp_sfc'),
-                                           ('tmp_2m', '/', 'tmp_sfc'),
-                                           ('apcp_sfc', '-', 'pwat_eatm'),
-                                           ('apcp_sfc', '/', 'pwat_eatm'),
-                                                ))),
+            # ('ft', FunctionTransformer(block='nm', new_block='nmft',
+            #                            ops=(
+            #                                ('uswrf_sfc', '/', 'dswrf_sfc'),
+            #                                ('ulwrf_sfc', '/', 'dlwrf_sfc'),
+            #                                ('ulwrf_sfc', '/', 'uswrf_sfc'),
+            #                                ('dlwrf_sfc', '/', 'dswrf_sfc'),
+            #                                ('tmax_2m', '-', 'tmin_2m'),
+            #                                ('tmax_2m', '/', 'tmin_2m'),
+            #                                ('tmp_2m', '-', 'tmp_sfc'),
+            #                                ('tmp_2m', '/', 'tmp_sfc'),
+            #                                ('apcp_sfc', '-', 'pwat_eatm'),
+            #                                ('apcp_sfc', '/', 'pwat_eatm'),
+            #                                     ))),
 
                  ]
         self.pipeline = Pipeline(steps)
 
-        l1 = LocalTransformer(hour_mean=True, k=1)
+        l1 = LocalTransformer(hour_mean=False, k=1)
+        l2 = LocalTransformer(hour_mean=False, ens_std=True, k=1)
 
         self.fu = FeatureUnion([('hm_k1', l1),
-                                #('h_k2_dswrf_sfc', l2),
-                                #('es_k1', l3),
-                                #('hs_k1', l4),
-                                #('g_k5_3fx', g1),
+                                ('hs_k1', l2),
                                 ])
 
     def transform(self, X, y):
         self.n_stations = y.shape[1]
         ## FIXME hack
         X = self.pipeline.transform(X)
-        if self.use_enc:
-            X = self.enc.transform(X)
         self.fu.fit(X, y)
         X = self.fu.transform(X)
         y = LocalTransformer.transform_labels(y)
@@ -811,8 +807,6 @@ class LocalModel(BaseEstimator, RegressorMixin):
     def predict(self, X):
         n_days = X.shape[0]
         X = self.pipeline.transform(X)
-        if self.use_enc:
-            X = self.enc.transform(X)
         X = self.fu.transform(X)
         pred = self.est.predict(X)
         print X.shape, pred.shape

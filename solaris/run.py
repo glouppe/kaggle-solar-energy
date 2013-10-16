@@ -113,24 +113,21 @@ def train_test(args):
     offset = 3287  # this is 1.1.2003
     X_train, y_train = X[:offset], y[:offset]
     X_test, y_test = X[offset:], y[offset:]
-    del X
-    del y
-    gc.collect()
 
     #est = Ridge(alpha=1.0, normalize=True)
     #est = RidgeCV(alphas=10.0 ** np.arange(-4, 3, 1), normalize=True)
-    est = GradientBoostingRegressor(n_estimators=500, verbose=1, max_depth=6,
-                                    min_samples_leaf=9, learning_rate=0.04,
-                                    max_features=33, random_state=1,
-                                    subsample=.2,
+    est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=6,
+                                    min_samples_leaf=5, learning_rate=0.02,
+                                    max_features=33, random_state=2,
+                                    subsample=1.0,
                                     loss='lad')
 
     model_cls = MODELS[args['<model>']]
     model = model_cls(est=est,
-                      #with_stationinfo=True,
-                      #with_date=True, with_solar=False,
-                      #with_mask=False,
-                      #intp_blocks=('nm_intp', 'nmft_intp'),
+                      with_stationinfo=True,
+                      with_date=True, with_solar=False,
+                      with_mask=False,
+                      intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
                       )
 
     print('_' * 80)
@@ -193,18 +190,19 @@ def submit(args):
 
     X_test = data['X_test']
 
-    # est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=6,
-    #                                 min_samples_leaf=9, learning_rate=0.02,
-    #                                 max_features=20, random_state=1,
-    #                                 subsample=0.5,
-    #                                 loss='lad')
-    #est = Ridge(alpha=1.0, normalize=True)
+    est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=6,
+                                    min_samples_leaf=5, learning_rate=0.02,
+                                    max_features=33, random_state=2,
+                                    subsample=1.0,
+                                    loss='lad')
 
     model_cls = MODELS[args['<model>']]
-    model = model_cls(est=est, with_stationinfo=True,
+    model = model_cls(est=est,
+                      with_stationinfo=True,
                       with_date=True, with_solar=False,
-                      intp_blocks=('nm_intp', 'nmft_intp'),
-                      with_mask=False)
+                      with_mask=False,
+                      intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+                      )
 
     print('_' * 80)
     print('Submit')
@@ -230,7 +228,7 @@ def submit(args):
     stid = pd.read_csv('data/station_info.csv')['stid']
     out = pd.DataFrame(index=date_idx, columns=stid, data=pred)
     out.index.name = 'Date'
-    out.to_csv('hk_15.csv')
+    out.to_csv('hk_14.csv')
     import IPython
     IPython.embed()
 
