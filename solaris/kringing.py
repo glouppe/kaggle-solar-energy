@@ -89,26 +89,32 @@ class Interpolate(TransformerMixin, BaseEstimator):
             station_info = np.vstack(stat_info)
             assert station_info.shape[0] == n_stations
 
-        X.station_info = station_info
-
         x_test = X.station_info[:, [1, 0, 2]]  # lon, lat, elev
 
         X_nm = X.nm
-        #n_days, n_fx, n_ens, n_hour, n_lat, n_lon = X_nm.shape
+        n_days, n_fx, n_ens, n_hour, n_lat, n_lon = X_nm.shape
 
-        X_nm = X_nm.mean(axis=2)
-        n_days, n_fx, n_hour, n_lat, n_lon = X_nm.shape
+        X_nm_std = X_nm.std(axis=2)
+        X_nm_m = X_nm.mean(axis=2)
+        if self.use_nugget:
+            from sklearn.gaussian_process.gaussian_process import MACHINE_EPSILON
+            nuggets = (X_nm_std / X_nm_m) ** 2.0
+            mask = ~np.isfinite(nuggets)
+            nuggets[mask] = 10. * MACHINE_EPSILON
 
         #n_days = 10  # FIXME
 
-        #pred = np.zeros((n_days, n_fx, n_ens, n_hour, n_stations),
-        #                dtype=np.float32)
         pred = np.zeros((n_days, n_fx, n_hour, n_stations),
                         dtype=np.float32)
         if self.use_mse:
-            sigma2 = np.zeros((n_days, n_fx, n_ens, n_hour, n_stations),
+            sigma2 = np.zeros((n_days, n_fx, n_hour, n_stations),
                               dtype=np.float32)
         est = self.est
+
+        print('_' * 80)
+        print('computing interpolation')
+        print('train x.shape: %s' % str(x.shape))
+        print('x_test.shape: %s' % str(x_test.shape))
 
         for d in range(n_days):
             t0 = time()
@@ -116,18 +122,24 @@ class Interpolate(TransformerMixin, BaseEstimator):
                 #for e in range(n_ens):
                 for h in range(n_hour):
                     #y = X_nm[d, f, e, h] ## FIXME
-                    y = X_nm[d, f, h]
+                    y = X_nm_m[d, f, h]
+                    if self.use_nugget:
+                        nugget = nuggets[d, f, h].ravel()
+                        est.set_params(nugget=nugget)
                     if self.grid_mode:
                         est.fit((lon, lat), y)
                     else:
-                        est.fit(x, y.ravel())
+                        y = y.ravel()
+                        print('y.shape: %s' % str(y.shape))
+                        print('nugget.shape: %s' % str(nugget.shape))
+                        est.fit(x, y)
                     if self.use_mse:
                         c_pred, c_sigma2 = est.predict(x_test, eval_MSE=True)
-                        sigma2[d, f, e, h] = c_sigma2
+                        sigma2[d, f, h] = c_sigma2
                     else:
                         c_pred = est.predict(x_test)
                         #pred[d, f, e, h] = c_pred  # FIXME
-                        pred[d, f, h] = c_pred
+                    pred[d, f, h] = c_pred
             print('interpolate day: %d took %ds' % (d, time() - t0))
         if self.flatten:
             pred = pred.reshape((pred.shape[0], -1))
@@ -144,9 +156,9 @@ class Interpolate(TransformerMixin, BaseEstimator):
 class Kringing(Interpolate):
 
     est = GaussianProcess(corr='squared_exponential',
-                          theta0=(6.0, 6.0, 6.0))
-    use_nugget = False
-    use_mse = False
+                          theta0=(7.0, 3.0, 3.0))
+    use_nugget = True
+    use_mse = True
 
 
 class SplineEstimator(object):
@@ -192,8 +204,8 @@ def transform_data():
 
     data = load_data('data/data.pkl')
 
-    #kringing = Kringing()
-    kringing = PertubatedSpline()
+    kringing = Kringing()
+    #kringing = PertubatedSpline()
 
     print('_' * 80)
     print(kringing)
@@ -210,7 +222,7 @@ def transform_data():
 
     print
     print('dumping data')
-    joblib.dump(data, 'data/interp7_data.pkl')
+    joblib.dump(data, 'data/interp4_data.pkl')
     IPython.embed()
 
 
