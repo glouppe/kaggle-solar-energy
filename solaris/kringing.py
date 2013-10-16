@@ -342,7 +342,7 @@ def inspect():
         plt.title('Feature %d' % fx_id)
         ax1.imshow(G, interpolation='none')
 
-        est = GaussianProcess(corr='squared_exponential', theta0=(2.0, 4.0))
+        est = GaussianProcess(corr='squared_exponential', theta0=(3.0, 7.0))
         est.fit(x, y.ravel())
         G = est.predict(np.c_[new_lats.ravel(),
                               new_lons.ravel()]).reshape((10 * lon.shape[0],
