@@ -1439,7 +1439,7 @@ Without masking
 MAE:  1959680.30
 RMSE: 3064633.13
 R2: 0.84
-________________________________________________________________________________
+
 With masking
 MAE:  1913301.65
 RMSE: 2946062.64
@@ -1464,14 +1464,12 @@ MAE:  1981755.23
 RMSE: 3104136.39
 R2: 0.84
 
-________________________________________________________________________________
 With masking
 MAE:  1935107.09
 RMSE: 2986469.65
 R2: 0.85
 
 
-________________________________________________________________________________
 
 EnsembleKrigingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.04, loss=lad,
              max_depth=6, max_features=33, min_samples_leaf=9,
@@ -1484,7 +1482,6 @@ EnsembleKrigingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learnin
            est__verbose=1, intp_blocks=('nm_intp', 'nmft_intp'),
            with_date=True, with_mask=False, with_solar=False,
            with_stationinfo=True)
-
 
 n_nes = 11
 
@@ -1788,7 +1785,6 @@ Variable importances with ExtraTreesClassifier(max_features=1, n_estimators=500)
 91 nmft_intp_ulwrf_sfc/uswrf_sfc_2 8.04119652824e-05
 
 
---------------------------------------------------------------------------------
 
 16.10.2013
 ^^^^^^^^^^
