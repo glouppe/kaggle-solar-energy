@@ -1855,7 +1855,7 @@ LB: 1929699.30
 
 ------------------
 
-Best model on interp6:
+Grid (interp6):
 
 KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.022, loss=lad,
              max_depth=6, max_features=36, min_samples_leaf=3,
@@ -1880,3 +1880,30 @@ MAE:  1912385.51
 RMSE: 2945357.17
 R2: 0.85
 
+
+
+-------------------
+
+interp6
+
+EnsembleKrigingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02,
+loss=lad,
+             max_depth=6, max_features=33, min_samples_leaf=9,
+             min_samples_split=2, n_estimators=1000, random_state=1,
+             subsample=1.0, verbose=1),
+           est__alpha=0.9, est__init=None, est__learning_rate=0.02,
+           est__loss=lad, est__max_depth=6, est__max_features=33,
+           est__min_samples_leaf=9, est__min_samples_split=2,
+           est__n_estimators=1000, est__random_state=1, est__subsample=1.0,
+           est__verbose=1, intp_blocks=('nm_intp', 'nmft_intp'),
+           with_date=True, with_mask=False, with_solar=False,
+           with_stationinfo=True)
+
+Without masking
+MAE:  1964788.67
+RMSE: 3072029.52
+R2: 0.84
+
+With masking
+MAE:  1918357.25
+RMSE: 2954007.09
