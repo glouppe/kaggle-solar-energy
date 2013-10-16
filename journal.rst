@@ -1720,3 +1720,32 @@ Variable importances with ExtraTreesClassifier(max_features=1, n_estimators=500)
 118 nmft_intp_tmp_2m/tmp_sfc_4 0.000198662838212
 92 nmft_intp_ulwrf_sfc/uswrf_sfc_3 0.000172256876068
 91 nmft_intp_ulwrf_sfc/uswrf_sfc_2 8.04119652824e-05
+
+
+16.10.2013
+^^^^^^^^^^
+
+Best model on interp6 data:
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.022, loss=lad,
+             max_depth=6, max_features=36, min_samples_leaf=3,
+             min_samples_split=2, n_estimators=2000, random_state=1,
+             subsample=1.0, verbose=1),
+       est__alpha=0.9, est__init=None, est__learning_rate=0.022,
+       est__loss=lad, est__max_depth=6, est__max_features=36,
+       est__min_samples_leaf=3, est__min_samples_split=2,
+       est__n_estimators=2000, est__random_state=1, est__subsample=1.0,
+       est__verbose=1,
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_date=True, with_mask=False, with_solar=False,
+       with_stationinfo=True)
+
+Without masking
+MAE:  1958663.06
+RMSE: 3063509.66
+R2: 0.84
+
+With masking
+MAE:  1912385.51
+RMSE: 2945357.17
+R2: 0.85
