@@ -362,7 +362,7 @@ def inspect():
                                                           10 * lat.shape[0])).T
         ax4.imshow(G, interpolation='none')
 
-    def nugget_kungfu(day=0, fx_id=0, hour=3):
+    def nugget_kungfu(day=0, fx_id=0, hour=3, theta0=(0.4, 1.0)):
         G = X.nm[day, fx_id, :, hour]
 
         G_m = G.mean(axis=0)
@@ -371,16 +371,22 @@ def inspect():
         from sklearn.gaussian_process.gaussian_process import MACHINE_EPSILON
         nugget = (G_s / G_m) ** 2.0
         mask = ~np.isfinite(nugget)
-        #nugget[mask] = 10. * MACHINE_EPSILON
+        nugget[mask] = 10. * MACHINE_EPSILON
         nugget = nugget.ravel()
-        est = GaussianProcess(corr='squared_exponential', theta0=(1.5, 3.0),
-                              thetaL=(.5, 1.0), thetaU=(5.0, 10.0), random_start=100,
-                              nugget=nugget)
-        est.fit(x, y)
+        est = GaussianProcess(corr='squared_exponential',
+                              theta0=theta0,
+                              #thetaL=(.5, 1.0), thetaU=(5.0, 10.0),
+                              #random_start=100,
+                              nugget=nugget,
+                              )
+        est.fit(x, G_m.ravel())
+        print('est.theta_: %s' % str(est.theta_))
 
-        pred, sigma = est.predict(np.c_[new_lats.ravel(), new_lons.ravel()], eval_MSE=True)
+        pred, sigma = est.predict(np.c_[new_lats.ravel(), new_lons.ravel()],
+                                  eval_MSE=True)
         pred = pred.reshape((10 * lon.shape[0], 10 * lat.shape[0])).T
         sigma = sigma.reshape((10 * lon.shape[0], 10 * lat.shape[0])).T
+
         fig, ([ax1, ax2, ax3, ax4]) = plt.subplots(4, 1)
         ax1.imshow(G_m, interpolation='none')
         ax1.set_ylabel('Ens mean')
