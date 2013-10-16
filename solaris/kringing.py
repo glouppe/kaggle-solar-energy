@@ -130,8 +130,6 @@ class Interpolate(TransformerMixin, BaseEstimator):
                         est.fit((lon, lat), y)
                     else:
                         y = y.ravel()
-                        print('y.shape: %s' % str(y.shape))
-                        print('nugget.shape: %s' % str(nugget.shape))
                         est.fit(x, y)
                     if self.use_mse:
                         c_pred, c_sigma2 = est.predict(x_test, eval_MSE=True)
@@ -329,7 +327,7 @@ def inspect():
     lat = np.unique(grid.variables['latitude'][:])
 
     # take a grid
-    for fx_id in range(15):
+    for fx_id in range(3):
         G = X.nm[0, fx_id, 0, 3]
 
         new_lats = np.linspace(lat.min(), lat.max(), 10 * lat.shape[0])
@@ -364,10 +362,40 @@ def inspect():
                                                           10 * lat.shape[0])).T
         ax4.imshow(G, interpolation='none')
 
+    def nugget_kungfu(day=0, fx_id=0, hour=3):
+        G = X.nm[day, fx_id, :, hour]
+
+        G_m = G.mean(axis=0)
+        G_s = G.std(axis=0)
+
+        from sklearn.gaussian_process.gaussian_process import MACHINE_EPSILON
+        nugget = (G_s / G_m) ** 2.0
+        mask = ~np.isfinite(nugget)
+        #nugget[mask] = 10. * MACHINE_EPSILON
+        nugget = nugget.ravel()
+        est = GaussianProcess(corr='squared_exponential', theta0=(1.5, 3.0),
+                              thetaL=(.5, 1.0), thetaU=(5.0, 10.0), random_start=100,
+                              nugget=nugget)
+        est.fit(x, y)
+
+        pred, sigma = est.predict(np.c_[new_lats.ravel(), new_lons.ravel()], eval_MSE=True)
+        pred = pred.reshape((10 * lon.shape[0], 10 * lat.shape[0])).T
+        sigma = sigma.reshape((10 * lon.shape[0], 10 * lat.shape[0])).T
+        fig, ([ax1, ax2, ax3, ax4]) = plt.subplots(4, 1)
+        ax1.imshow(G_m, interpolation='none')
+        ax1.set_ylabel('Ens mean')
+        ax2.imshow(G_s, interpolation='none')
+        ax2.set_ylabel('Ens std')
+        ax3.imshow(pred, interpolation='none')
+        ax3.set_ylabel('GP mean')
+        ax4.imshow(sigma, interpolation='none')
+        ax4.set_ylabel('GP sigma')
+
+
     IPython.embed()
 
 
 if __name__ == '__main__':
-    transform_data()
+    #transform_data()
     #benchmark()
-    #inspect()
+    inspect()
