@@ -1784,3 +1784,68 @@ Variable importances with ExtraTreesClassifier(max_features=1, n_estimators=500)
 118 nmft_intp_tmp_2m/tmp_sfc_4 0.000198662838212
 92 nmft_intp_ulwrf_sfc/uswrf_sfc_3 0.000172256876068
 91 nmft_intp_ulwrf_sfc/uswrf_sfc_2 8.04119652824e-05
+
+
+--------------------------------------------------------------------------------
+
+16.10.2013
+^^^^^^^^^^
+
+HK15 experiment - same as HK10 but with interp6 (spline) instead of interp5 (GP).
+
+Here are the TT results for HK10 and HK14
+
+HK14
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02, loss=lad,
+             max_depth=6, max_features=33, min_samples_leaf=5,
+             min_samples_split=2, n_estimators=2000, random_state=2,
+             subsample=1.0, verbose=1),
+       est__alpha=0.9, est__init=None, est__learning_rate=0.02,
+       est__loss=lad, est__max_depth=6, est__max_features=33,
+       est__min_samples_leaf=5, est__min_samples_split=2,
+       est__n_estimators=2000, est__random_state=2, est__subsample=1.0,
+       est__verbose=1,
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_date=True, with_mask=False, with_solar=False,
+       with_stationinfo=True)
+Without masking
+MAE:  1960357.90
+RMSE: 3065497.83
+R2: 0.84
+
+LB: 1938378.35
+
+________________________________________________________________________________
+With masking
+MAE:  1913991.42
+RMSE: 2947062.05
+R2: 0.85
+
+HK10
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02, loss=lad,
+             max_depth=6, max_features=33, min_samples_leaf=9,
+             min_samples_split=2, n_estimators=2000, random_state=1,
+             subsample=1.0, verbose=1),
+       est__alpha=0.9, est__init=None, est__learning_rate=0.02,
+       est__loss=lad, est__max_depth=6, est__max_features=33,
+       est__min_samples_leaf=9, est__min_samples_split=2,
+       est__n_estimators=2000, est__random_state=1, est__subsample=1.0,
+       est__verbose=1,
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_date=True, with_mask=True, with_solar=True,
+       with_stationinfo=True)
+Without masking
+MAE:  1970118.02
+RMSE: 3078680.34
+R2: 0.84
+
+________________________________________________________________________________
+With masking
+MAE:  1923963.48
+RMSE: 2960936.41
+R2: 0.85
+
+LB: 1929699.30
+
