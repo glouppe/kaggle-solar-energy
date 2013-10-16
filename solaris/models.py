@@ -322,6 +322,12 @@ class KringingModel(BaseEstimator, RegressorMixin):
     """Assumes that blocks ``nm_intp`` is present - interpolation
     of station parameters by Kriging (see solaris.kringing).
 
+    Attributes
+    ----------
+    ens_mean : bool
+        Whether or not ens is included in the ``nm_inpt`` feature block.
+        If True it will create mean and std features.
+
     Parameters
     ----------
     intp_blocks : seq of str
@@ -340,7 +346,7 @@ class KringingModel(BaseEstimator, RegressorMixin):
 
     """
 
-    ens_mean = True
+    ens_mean = False
 
     def __init__(self, est, intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
                  with_stationinfo=True, with_date=True,
