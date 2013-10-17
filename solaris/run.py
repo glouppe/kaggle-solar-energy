@@ -109,8 +109,9 @@ def train_test(args):
     y = data['y_train']
 
     # no shuffle - past-future split
-    offset = X.shape[0] * 0.5
-    offset = 3287  # this is 1.1.2003
+    #offset = X.shape[0] * 0.5
+    #offset = 3287  # this is 1.1.2003
+    offset = 3287 + 365 + 366
     X_train, y_train = X[:offset], y[:offset]
     X_test, y_test = X[offset:], y[offset:]
 
@@ -119,8 +120,7 @@ def train_test(args):
     est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=6,
                                     min_samples_leaf=9, learning_rate=0.02,
                                     max_features=33, random_state=1,
-                                    subsample=1.0,
-                                    loss='lad')
+                                    subsample=1.0, loss='lad')
 
     model_cls = MODELS[args['<model>']]
     model = model_cls(est=est,

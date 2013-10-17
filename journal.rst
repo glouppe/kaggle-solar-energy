@@ -1930,3 +1930,29 @@ With masking
 MAE:  1922987.14
 RMSE: 2963366.83
 R2: 0.85
+
+
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.023, loss=lad,
+             max_depth=6, max_features=30, min_samples_leaf=9,
+             min_samples_split=2, n_estimators=2000, random_state=1,
+             subsample=1.0, verbose=1),
+       est__alpha=0.9, est__init=None, est__learning_rate=0.023,
+       est__loss=lad, est__max_depth=6, est__max_features=30,
+       est__min_samples_leaf=9, est__min_samples_split=2,
+       est__n_estimators=2000, est__random_state=1, est__subsample=1.0,
+       est__verbose=1,
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_date=True, with_mask=True, with_solar=True,
+       with_stationinfo=True)
+
+Without masking
+MAE:  1880074.27
+RMSE: 2931100.49
+R2: 0.85
+
+________________________________________________________________________________
+With masking
+MAE:  1834621.03
+RMSE: 2808696.40
+R2: 0.86
