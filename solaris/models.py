@@ -1,5 +1,7 @@
 import numpy as np
+import pandas as pd
 import gc
+import IPython
 
 from time import time
 from scipy import ndimage
@@ -156,6 +158,13 @@ class DateTransformer(BaseEstimator, TransformerMixin):
     def transform(self, X, y=None):
         if hasattr(X, 'date'):
             date = X.date
+
+            year = date.map(lambda x: x.year)
+            year = year.astype(np.float32)
+            year = year.reshape((year.shape[0], 1))
+            X['year'] = year
+            X.fx_name['year'] = 'year'
+
             op = self.op
             if op == 'doy':
                 vals = date.map(lambda x: x.dayofyear)
@@ -350,13 +359,15 @@ class KringingModel(BaseEstimator, RegressorMixin):
 
     def __init__(self, est, intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
                  with_stationinfo=True, with_date=True,
-                 with_solar=False, with_mask=False):
+                 with_solar=False, with_mask=False,
+                 with_climate=False):
         self.est = est
         self.intp_blocks = intp_blocks
         self.with_date = with_date
         self.with_solar = with_solar
         self.with_mask = with_mask
         self.with_stationinfo = with_stationinfo
+        self.with_climate = with_climate
 
     def fit(self, X_st, y):
         self.n_stations = y.shape[1]
@@ -390,6 +401,8 @@ class KringingModel(BaseEstimator, RegressorMixin):
         out = []
         fx_names = []
         n_days = X_st.shape[0]
+
+        orig_date = X_st.date.copy()
 
         ## FIXME forgot feature names for nm_intp
         if 'nm_intp' not in X_st.fx_name:
@@ -456,6 +469,11 @@ class KringingModel(BaseEstimator, RegressorMixin):
             out.append(date.astype(np.float32))
             fx_names.append('doy')
 
+            # FIXME added year
+            # year = np.repeat(X_st.year, self.n_stations)[:, np.newaxis]
+            # out.append(year.astype(np.float32))
+            # fx_names.append('year')
+
         # ## transform station-info
         if self.with_stationinfo:
             stinfo = X_st.station_info
@@ -490,12 +508,40 @@ class KringingModel(BaseEstimator, RegressorMixin):
             X = X.reshape((np.prod(X.shape[:2]), -1))
             out.append(X.astype(np.float32))
 
+        if self.with_climate:
+            date = orig_date
+            month = date.map(lambda d: d.month).astype(np.float32)
+            month = np.repeat(month, self.n_stations)[:, np.newaxis]
+            stid = np.tile(np.arange(self.n_stations), n_days)[:, np.newaxis]
+            out.extend((month, stid))
+            fx_names.extend(['month', 'stid'])
+
+        for o in out:
+            print o.shape
         out = np.hstack(out)
         self.fx_names_ = fx_names
         print('transform to shape: %s' % str(out.shape))
         print('dtype: %s' % out.dtype)
         print('size of X in mb: %.2f' % (out.nbytes / 1024.0 / 1024.0))
         return out
+
+
+class ClimateEstimator(BaseEstimator):
+
+    def fit(self, X, y):
+        #assume last two fx are month and stid
+        df = pd.DataFrame(data={'month': X[:, -2].astype(np.int) - 1,
+                                'stid': X[:, -1].astype(np.int),
+                                'y': y})
+        self.climate = df.groupby(('month', 'stid')).y.mean().reshape((12, 98))
+        #IPython.embed()
+        return self
+
+    def predict(self, X):
+        month = X[:, -2].astype(np.int) - 1
+        stid = X[:, -1].astype(np.int)
+        y = self.climate[month, stid][:, np.newaxis]
+        return y
 
 
 class PertubedKrigingModel(KringingModel):
@@ -523,7 +569,9 @@ class PertubedPredictionKrigingModel(KringingModel):
     def fit(self, X_st, y):
         n_stations = X_st.nm_intp.shape[-1]
         nm_intp = X_st.nm_intp[:, :, :, :98]
+        nm_intp_sigma = X_st.nm_intp_sigma[:, :, :, :98]
         X_st['nm_intp'] = nm_intp
+        X_st['nm_intp_sigma'] = nm_intp_sigma
         X_st.station_info = X_st.station_info[:98]
         super(PertubedPredictionKrigingModel, self).fit(X_st, y)
         self.n_stations = n_stations
@@ -637,6 +685,8 @@ class LocalTransformer(BaseEstimator, TransformerMixin):
         lat_idx = np.searchsorted(X.lat, ll_coord[:, 0])
         lon_idx = np.searchsorted(X.lon, ll_coord[:, 1] + 360)
 
+        #IPython.embed()
+
         n_fx = 0
         for b_name, X_b in X.blocks.iteritems():
             old_n_fx = n_fx
@@ -666,7 +716,7 @@ class LocalTransformer(BaseEstimator, TransformerMixin):
 
         # num of features - based on blocks + station info (5 fx)
         if self.aux:
-            n_fx = n_fx + 3 + 2
+            n_fx = n_fx + 3 + 2 + 2
 
         X_p = np.zeros((n_days * self.n_stations, n_fx), dtype=np.float32)
         offset = 0
@@ -745,12 +795,15 @@ class LocalTransformer(BaseEstimator, TransformerMixin):
             lat_idx = np.repeat(lat_idx, n_days)
             lon_idx = np.repeat(lon_idx, n_days)
             # offset - 3 is station lat
-            X_p[:, offset] = (X.lat[lat_idx] -
-                              X_p[:, offset - 3])
+            X_p[:, offset] = (X_p[:, offset - 3] - X.lat[lat_idx])
             # offset - 2 is station lon
-            X_p[:, offset + 1] = ((X.lon[lon_idx] - 360.) -
-                                  X_p[:, offset - 2])
-        #IPython.embed()
+            X_p[:, offset + 1] = (X_p[:, offset - 2] - (X.lon[lon_idx] - 360.))
+
+            # FIXME add lat lon idx
+            offset += 2
+            X_p[:, offset] = lat_idx
+            X_p[:, offset + 1] = lon_idx
+
         print 'X_p.shape: ', X_p.shape
         return X_p
 
@@ -774,16 +827,19 @@ class LocalModel(BaseEstimator, RegressorMixin):
             #                                ('tmp_2m', '/', 'tmp_sfc'),
             #                                ('apcp_sfc', '-', 'pwat_eatm'),
             #                                ('apcp_sfc', '/', 'pwat_eatm'),
+
+            #                                ('uswrf_sfc', '/', 'dlwrf_sfc'),
+            #                                ('ulwrf_sfc', '/', 'dswrf_sfc'),
             #                                     ))),
 
                  ]
         self.pipeline = Pipeline(steps)
 
-        l1 = LocalTransformer(hour_mean=False, k=1)
-        l2 = LocalTransformer(hour_mean=False, ens_std=True, k=1)
+        l1 = LocalTransformer(hour_mean=True, k=1, aux=True)
+        #l2 = LocalTransformer(hour_mean=False, ens_std=True, k=1)
 
         self.fu = FeatureUnion([('hm_k1', l1),
-                                ('hs_k1', l2),
+                                #('hs_k1', l2),
                                 ])
 
     def transform(self, X, y):
@@ -824,6 +880,115 @@ class LocalModel(BaseEstimator, RegressorMixin):
         return pred
 
 
+class EdgeLocal(BaseEstimator, RegressorMixin):
+
+    def __init__(self, est, block_names=('nm', 'nmft'), clip=False):
+        self.est = est
+        self.block_names = block_names
+        self.clip=clip
+        steps = [
+            ('date', DateTransformer(op='doy')),
+            ('ft', FunctionTransformer(block='nm', new_block='nmft',
+                                       ops=(
+                                           ('uswrf_sfc', '/', 'dswrf_sfc'),
+                                           ('ulwrf_sfc', '/', 'dlwrf_sfc'),
+                                           ('ulwrf_sfc', '/', 'uswrf_sfc'),
+                                           ('dlwrf_sfc', '/', 'dswrf_sfc'),
+                                           ('tmax_2m', '-', 'tmin_2m'),
+                                           ('tmax_2m', '/', 'tmin_2m'),
+                                           ('tmp_2m', '-', 'tmp_sfc'),
+                                           ('tmp_2m', '/', 'tmp_sfc'),
+                                           ('apcp_sfc', '-', 'pwat_eatm'),
+                                           ('apcp_sfc', '/', 'pwat_eatm'),
+
+                                           ('uswrf_sfc', '/', 'dlwrf_sfc'),
+                                           ('ulwrf_sfc', '/', 'dswrf_sfc'),
+                                                ))),
+                 ]
+        self.pipeline = Pipeline(steps)
+
+    def _transform(self, X):
+        n_days = X.shape[0]
+        n_stations = X.station_info.shape[0]
+
+        # compute coordinates
+        ll_coord = X.station_info[:, 0:2]  # lat-lon
+        lat_idx = np.searchsorted(X.lat, ll_coord[:, 0]).repeat(4)
+        lon_idx = np.searchsorted(X.lon, ll_coord[:, 1] + 360).repeat(4)
+        ll_coord = ll_coord.repeat(4, axis=0)
+
+        lat_offsets = np.tile(np.array([0, 0, -1, -1]), n_stations)
+        lon_offsets = np.tile(np.array([0, -1, 0, -1]), n_stations)
+
+        grid_coord = np.c_[X.lat[lat_idx + lat_offsets],
+                           X.lon[lon_idx + lon_offsets] - 360.]
+        rel_coord = ll_coord - grid_coord
+
+        # coordindate and date features
+        rel_coord = np.tile(rel_coord, (n_days, 1)).astype(np.float32)
+        abs_coord = np.tile(ll_coord, (n_days, 1)).astype(np.float32)
+        doy = X.date.repeat(n_stations * 4)[:, np.newaxis].astype(np.float32)
+
+        blocks = [rel_coord, abs_coord, doy]
+
+        for block_name in self.block_names:
+            nm_mean = X[block_name].mean(axis=2).astype(np.float32)
+            nm_std = X[block_name].std(axis=2).astype(np.float32)
+            for nm in (nm_mean, nm_std):
+                out = nm[:, :, :, lat_idx + lat_offsets, lon_idx + lon_offsets]
+                out= out.swapaxes(1, 3)
+                out = out.reshape((out.shape[0] * out.shape[1], -1))
+                blocks.append(out)
+
+            # add mean fx
+            nm = nm_mean.mean(axis=2)
+            out = nm[:, :, lat_idx + lat_offsets, lon_idx + lon_offsets]
+            out= out.swapaxes(1, 2)
+            out = out.reshape((out.shape[0] * out.shape[1], -1))
+            blocks.append(out)
+
+        out = np.hstack(blocks).astype(np.float32)
+        return out
+
+    def transform_labels(self, y):
+        """Ravels and copies each value 4 times """
+        return y.ravel().repeat(4)
+
+    def transform(self, X):
+        X = self.pipeline.transform(X)
+        X = self._transform(X)
+        return X
+
+    def fit(self, X, y, **kw):
+        self.n_stations = y.shape[1]
+
+        X = self.transform(X)
+        y = self.transform_labels(y)
+
+        assert X.shape[0] == y.shape[0]
+        print 'EdgeLocal: fit est on X: %s' % str(X.shape)
+        t0 = time()
+        self.est.fit(X, y)
+        print('Est fitted in %.2fm' % ((time() - t0) / 60.))
+        if self.clip:
+            self.clip_high = y.max()
+            self.clip_low = y.min()
+        return self
+
+    def predict(self, X):
+        n_days = X.shape[0]
+        X = self.transform(X)
+
+        pred = self.est.predict(X)
+
+        #IPython.embed()
+        pred = pred.reshape((n_days, self.n_stations, 4))
+        pred = pred.mean(axis=2)
+        if self.clip:
+            pred = np.clip(pred, self.clip_low, self.clip_high)
+        return pred
+
+
 MODELS = {
     'baseline': Baseline,
     #'ensemble': EnsembledRegressor,
@@ -832,6 +997,7 @@ MODELS = {
     'kringing': KringingModel,
     'kriging': KringingModel,
     'ensemble_kriging': EnsembleKrigingModel,
-    'pertubed_kriging': PertubedKrigingModel,
-    'pertubed_pred_kriging': PertubedPredictionKrigingModel,
+    'perturbed_kriging': PertubedKrigingModel,
+    'perturbed_pred_kriging': PertubedPredictionKrigingModel,
+    'edgelocal': EdgeLocal,
     }

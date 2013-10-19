@@ -22,6 +22,7 @@ Options:
 import gc
 import numpy as np
 import pandas as pd
+import IPython
 
 from docopt import docopt
 from itertools import izip
@@ -32,6 +33,7 @@ from sklearn.linear_model import RidgeCV
 from sklearn.linear_model import Ridge
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import GradientBoostingRegressor
+#from sklearn.ensemble.gradient_boosting import ZeroEstimator
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.dummy import DummyRegressor
 from sklearn import cross_validation
@@ -39,6 +41,7 @@ from sklearn import metrics
 
 from .models import MODELS
 from .models import IndividualEstimator
+from .models import ClimateEstimator
 from .err_analysis import err_analysis
 from . import util
 
@@ -98,7 +101,6 @@ def cross_val(args):
         pred[test] = fold_pred
 
     err_analysis(pred, y)
-    import IPython
     IPython.embed()
 
 
@@ -109,9 +111,9 @@ def train_test(args):
     y = data['y_train']
 
     # no shuffle - past-future split
-    #offset = X.shape[0] * 0.5
+    offset = X.shape[0] * 0.5
     #offset = 3287  # this is 1.1.2003
-    offset = 3287 + 365 + 366
+    #offset = 3287 + 365 + 366
     X_train, y_train = X[:offset], y[:offset]
     X_test, y_test = X[offset:], y[offset:]
 
@@ -120,7 +122,8 @@ def train_test(args):
     est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=6,
                                     min_samples_leaf=9, learning_rate=0.02,
                                     max_features=33, random_state=1,
-                                    subsample=1.0, loss='lad')
+                                    subsample=1.0, loss='lad',
+                                    init=ClimateEstimator())
 
     model_cls = MODELS[args['<model>']]
     model = model_cls(est=est,
@@ -128,6 +131,7 @@ def train_test(args):
                       with_date=True, with_solar=True,
                       with_mask=True,
                       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+                      with_climate=True
                       )
 
 
@@ -175,7 +179,6 @@ def train_test(args):
         mask = util.clean_missing_labels(y_test)
         err_analysis(pred, y_test.copy(), X_test=X_test, mask=mask)
 
-    import IPython
     IPython.embed()
 
 
@@ -229,8 +232,7 @@ def submit(args):
     stid = pd.read_csv('data/station_info.csv')['stid']
     out = pd.DataFrame(index=date_idx, columns=stid, data=pred)
     out.index.name = 'Date'
-    out.to_csv('hk_10_calibrate.csv')
-    import IPython
+    out.to_csv('hk_19.csv')
     IPython.embed()
 
 
@@ -238,7 +240,6 @@ def inspect(args):
     data = load_data(args['--data'])
     X = data['X_train']
     y = data['y_train']
-    import IPython
     IPython.embed()
 
 

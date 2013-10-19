@@ -73,23 +73,24 @@ class Interpolate(TransformerMixin, BaseEstimator):
         lat = np.unique(x[:, 1])
 
         n_stations = X.station_info.shape[0]
-        stat_info = X.station_info
+        station_info = X.station_info
 
         if self.pertubations > 0:
             print('Making %d pertubations to station infos' % self.pertubations)
             rs = np.random.RandomState()
-            x_test_control = stat_info
-            stat_info = [x_test_control]
+            x_test_control = station_info
+            station_info = [x_test_control]
             for i in range(self.pertubations):
                 x_pertub = (x_test_control + rs.randn(n_stations, 3) *
                             self.pertubation_damping_factors)
-                stat_info.append(x_pertub)
+                station_info.append(x_pertub)
 
             n_stations = n_stations + (self.pertubations * n_stations)
-            station_info = np.vstack(stat_info)
+            station_info = np.vstack(station_info)
             assert station_info.shape[0] == n_stations
+            X.station_info = station_info
 
-        x_test = X.station_info[:, [1, 0, 2]]  # lon, lat, elev
+        x_test = station_info[:, [1, 0, 2]]  # lon, lat, elev
 
         X_nm = X.nm
         n_days, n_fx, n_ens, n_hour, n_lat, n_lon = X_nm.shape
@@ -162,6 +163,11 @@ class Kringing(Interpolate):
     use_mse = True
 
 
+class PertubatedKriging(Kringing):
+
+    pertubations = 3
+
+
 class SplineEstimator(object):
 
     def fit(self, x, y):
@@ -205,7 +211,7 @@ def transform_data():
 
     data = load_data('data/data.pkl')
 
-    kringing = Kringing()
+    kringing = PertubatedKriging()
     #kringing = PertubatedSpline()
 
     data['description'] = '%r: %r' % (kringing, kringing.est)
@@ -226,7 +232,7 @@ def transform_data():
 
     print
     print('dumping data')
-    joblib.dump(data, 'data/interp9_data.pkl')
+    joblib.dump(data, 'data/interp10_data.pkl')
     IPython.embed()
 
 
