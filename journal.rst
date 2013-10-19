@@ -1956,3 +1956,74 @@ With masking
 MAE:  1834621.03
 RMSE: 2808696.40
 R2: 0.86
+
+
+________________________________________________________________________________
+
+EdgeLocal
+
+EdgeLocal(clip=False,
+     est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02, loss=lad,
+             max_depth=6, max_features=30, min_samples_leaf=5,
+             min_samples_split=2, n_estimators=1000, random_state=1,
+             subsample=1.0, verbose=1),
+     est__alpha=0.9, est__init=None, est__learning_rate=0.02,
+     est__loss=lad, est__max_depth=6, est__max_features=30,
+     est__min_samples_leaf=5, est__min_samples_split=2,
+     est__n_estimators=1000, est__random_state=1, est__subsample=1.0,
+     est__verbose=1)
+
+this uses mean and std hourly features - no daily mean.
+coordinates and doy; 155 fx in total
+15 * 5 + 15 * 5 + 4 + 1
+
+1000     1939302.6107            0.00s
+Without masking
+MAE:  1991264.22
+RMSE: 3095222.37
+R2: 0.84
+
+With masking
+MAE:  1949875.45
+RMSE: 2994866.29
+R2: 0.85
+
+
+
+2000     1808499.4890
+Without masking
+MAE:  1981167.41
+RMSE: 3070396.59
+R2: 0.84
+
+________________________________________________________________________________
+With masking
+MAE:  1939895.58
+RMSE: 2969409.45
+R2: 0.86
+
+
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=ZeroEstimator(), learning_rate=0.02,
+             loss=lad, max_depth=6, max_features=33, min_samples_leaf=9,
+             min_samples_split=2, n_estimators=2000, random_state=1,
+             subsample=1.0, verbose=1),
+       est__alpha=0.9, est__init=ZeroEstimator(), est__learning_rate=0.02,
+       est__loss=lad, est__max_depth=6, est__max_features=33,
+       est__min_samples_leaf=9, est__min_samples_split=2,
+       est__n_estimators=2000, est__random_state=1, est__subsample=1.0,
+       est__verbose=1,
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_date=True, with_mask=False, with_solar=False,
+       with_stationinfo=True)
+ZeroEstimator
+
+MAE:  1982411.36
+RMSE: 3067046.52
+R2: 0.85
+
+________________________________________________________________________________
+With masking
+MAE:  1940859.30
+RMSE: 2964606.12
+R2: 0.86
