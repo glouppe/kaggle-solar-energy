@@ -362,7 +362,8 @@ class KringingModel(BaseEstimator, RegressorMixin):
                  with_solar=False, with_mask=False,
                  with_climate=False,
                  with_mean_history=False,
-                 with_history=False):
+                 with_history=False,
+                 with_mask_hard=False):
         self.est = est
         self.intp_blocks = intp_blocks
         self.with_date = with_date
@@ -372,6 +373,7 @@ class KringingModel(BaseEstimator, RegressorMixin):
         self.with_climate = with_climate
         self.with_mean_history = with_mean_history
         self.with_history = with_history
+        self.with_mask_hard = with_mask_hard
 
     def fit(self, X_st, y):
         self.n_stations = y.shape[1]
@@ -379,6 +381,17 @@ class KringingModel(BaseEstimator, RegressorMixin):
         mask = None
         if self.with_mask:
             mask = util.clean_missing_labels(y)
+
+        if self.with_mask_hard:
+            print('|mask|: %d' % mask.sum())
+            hard = np.load('data/hard_train_05.npy')
+            if hard.shape[0] < X_st.shape[0]:
+                # for submit runs - FIXME will break if TT split not 0.5
+                hard_2 = np.load('data/hard_test_05.npy')
+                hard = np.r_[hard, hard_2]
+            print('|hard|: %d' % hard.sum())
+            mask = np.logical_or(mask, hard)
+            print('|mask|: %d' % mask.sum())
 
         X = self.transform(X_st)
         y = self.transform_labels(y)

@@ -134,7 +134,8 @@ def train_test(args):
                       #intp_blocks=('nm_intp',),
                       #with_climate=True,
                       with_mean_history=False,
-                      with_history=True,
+                      with_history=False,
+                      with_mask_hard=True
                       )
 
 
