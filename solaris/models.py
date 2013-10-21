@@ -12,7 +12,7 @@ from sklearn.base import RegressorMixin
 from sklearn.base import TransformerMixin
 from sklearn.base import clone
 
-
+from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import LabelBinarizer
 from sklearn.pipeline import Pipeline
 from sklearn.pipeline import FeatureUnion
@@ -360,7 +360,9 @@ class KringingModel(BaseEstimator, RegressorMixin):
     def __init__(self, est, intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
                  with_stationinfo=True, with_date=True,
                  with_solar=False, with_mask=False,
-                 with_climate=False):
+                 with_climate=False,
+                 with_mean_history=False,
+                 with_history=False):
         self.est = est
         self.intp_blocks = intp_blocks
         self.with_date = with_date
@@ -368,6 +370,8 @@ class KringingModel(BaseEstimator, RegressorMixin):
         self.with_mask = with_mask
         self.with_stationinfo = with_stationinfo
         self.with_climate = with_climate
+        self.with_mean_history = with_mean_history
+        self.with_history = with_history
 
     def fit(self, X_st, y):
         self.n_stations = y.shape[1]
@@ -388,8 +392,9 @@ class KringingModel(BaseEstimator, RegressorMixin):
         self.est.fit(X, y)
         return self
 
-    def predict(self, X_st):
+    def predict(self, X_st, y_test=None):
         X = self.transform(X_st)
+
         pred = self.est.predict(X)
         pred = pred.reshape((X_st.shape[0], self.n_stations))
         return pred
@@ -492,8 +497,17 @@ class KringingModel(BaseEstimator, RegressorMixin):
             fx_names.extend(['_'.join((b_name, fx, str(h)))
                              for fx in X_st.fx_name[b_name]
                              for h in range(X.shape[-2])])
-            X = X.reshape((np.prod(X.shape[:2]), -1))
-            out.append(X.astype(np.float32))
+            X = X.reshape((np.prod(X.shape[:2]), -1)).astype(np.float32)
+            out.append(X)
+
+            #history
+            if self.with_history:
+                X = X.copy()
+                X[1:] = X[:-1]
+                out.append(X)
+                fx_names.extend(['_'.join((b_name, fx, str(h), 't-1'))
+                             for fx in X_st.fx_name[b_name]
+                             for h in range(X.shape[-2])])
 
         ## transform to mean features
         for b_name in self.intp_blocks:
@@ -505,8 +519,17 @@ class KringingModel(BaseEstimator, RegressorMixin):
             X = np.mean(X, axis=2)
             fx_names.extend(['_'.join((b_name, fx, 'm'))
                              for fx in X_st.fx_name[b_name]])
-            X = X.reshape((np.prod(X.shape[:2]), -1))
-            out.append(X.astype(np.float32))
+            X = X.reshape((np.prod(X.shape[:2]), -1)).astype(np.float32)
+            out.append(X)
+
+            # history
+            if self.with_mean_history:
+                X = X.copy()
+                X[1:] = X[:-1]
+                out.append(X)
+                fx_names.extend(['_'.join((b_name, fx, 'm_t-1'))
+                                 for fx in X_st.fx_name[b_name]])
+
 
         if self.with_climate:
             date = orig_date
@@ -927,9 +950,13 @@ class EdgeLocal(BaseEstimator, RegressorMixin):
         # coordindate and date features
         rel_coord = np.tile(rel_coord, (n_days, 1)).astype(np.float32)
         abs_coord = np.tile(ll_coord, (n_days, 1)).astype(np.float32)
+        elev_coord = np.tile(X.station_info[:, 2:3], (n_days, 1)).astype(np.float32)
         doy = X.date.repeat(n_stations * 4)[:, np.newaxis].astype(np.float32)
 
-        blocks = [rel_coord, abs_coord, doy]
+        blocks = [rel_coord, abs_coord, elev_coord, doy]
+
+        # FIXME add fx_names
+        # FXIME add grid cell elevation
 
         for block_name in self.block_names:
             nm_mean = X[block_name].mean(axis=2).astype(np.float32)
@@ -970,9 +997,8 @@ class EdgeLocal(BaseEstimator, RegressorMixin):
         t0 = time()
         self.est.fit(X, y)
         print('Est fitted in %.2fm' % ((time() - t0) / 60.))
-        if self.clip:
-            self.clip_high = y.max()
-            self.clip_low = y.min()
+        self.clip_high = y.max()
+        self.clip_low = y.min()
         return self
 
     def predict(self, X):
@@ -981,7 +1007,6 @@ class EdgeLocal(BaseEstimator, RegressorMixin):
 
         pred = self.est.predict(X)
 
-        #IPython.embed()
         pred = pred.reshape((n_days, self.n_stations, 4))
         pred = pred.mean(axis=2)
         if self.clip:

@@ -117,21 +117,24 @@ def train_test(args):
     X_train, y_train = X[:offset], y[:offset]
     X_test, y_test = X[offset:], y[offset:]
 
-    #est = Ridge(alpha=.001, normalize=True)
-    #est = RidgeCV(alphas=10.0 ** np.arange(-4, 3, 1), normalize=True)
+    # est = Ridge(alpha=.01, normalize=True)
+    # est = RidgeCV(alphas=10.0 ** np.arange(-4, 3, 1), normalize=True)
     est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=6,
                                     min_samples_leaf=9, learning_rate=0.02,
                                     max_features=33, random_state=1,
                                     subsample=1.0, loss='lad',
-                                    init=ZeroEstimator())
+                                    #init=ZeroEstimator()
+                                    )
 
     model_cls = MODELS[args['<model>']]
     model = model_cls(est=est,
-                      # with_stationinfo=True,
-                      # with_date=True, with_solar=True,
-                      # with_mask=True,
-                      # intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
-                      # with_climate=True
+                      with_stationinfo=True,
+                      with_date=True, with_solar=True,
+                      with_mask=True,
+                      #intp_blocks=('nm_intp',),
+                      #with_climate=True,
+                      with_mean_history=False,
+                      with_history=True,
                       )
 
 
@@ -149,6 +152,7 @@ def train_test(args):
     t0 = time()
     model.fit(X_train, y_train)
     print('model.fit took %.8fm' % ((time() - t0) / 60.))
+
     pred = model.predict(X_test)
     if args['--scaley']:
         pred = scaler.inverse_transform(pred)

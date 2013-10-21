@@ -2027,3 +2027,68 @@ With masking
 MAE:  1940859.30
 RMSE: 2964606.12
 R2: 0.86
+
+
+________________________________________________________________________________
+
+EdgeLocal
+
+EdgeLocal(block_names=('nm', 'nmft'), clip=False,
+     est=GradientBoostingRegressor(alpha=0.9, init=ZeroEstimator(), learning_rate=0.02,
+             loss=lad, max_depth=6, max_features=33, min_samples_leaf=9,
+             min_samples_split=2, n_estimators=2000, random_state=1,
+             subsample=1.0, verbose=1),
+     est__alpha=0.9, est__init=ZeroEstimator(), est__learning_rate=0.02,
+     est__loss=lad, est__max_depth=6, est__max_features=33,
+     est__min_samples_leaf=9, est__min_samples_split=2,
+     est__n_estimators=2000, est__random_state=1, est__subsample=1.0,
+     est__verbose=1)
+
+
+2000     1798125.4509            0.00s
+
+Without masking
+MAE:  1971198.44
+RMSE: 3044305.15
+R2: 0.85
+
+________________________________________________________________________________
+With masking
+MAE:  1930078.31
+RMSE: 2942692.09
+R2: 0.86
+
+
+TODO: add fx_names and **grid point elevation** to EdgeLocal
+
+TODO: study individual residuals/training error -- remove hard ones.
+
+
+________________________________________________________________________________
+
+History features
+
+KringingModel(est=GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.02, loss=lad,
+             max_depth=6, max_features=33, min_samples_leaf=9,
+             min_samples_split=2, n_estimators=2000, random_state=1,
+             subsample=1.0, verbose=1),
+       est__alpha=0.9, est__init=None, est__learning_rate=0.02,
+       est__loss=lad, est__max_depth=6, est__max_features=33,
+       est__min_samples_leaf=9, est__min_samples_split=2,
+       est__n_estimators=2000, est__random_state=1, est__subsample=1.0,
+       est__verbose=1,
+       intp_blocks=('nm_intp', 'nmft_intp', 'nm_intp_sigma'),
+       with_climate=False, with_date=True, with_history=True,
+       with_mask=True, with_mean_history=False, with_solar=True,
+       with_stationinfo=True)
+
+
+Without masking
+MAE:  1974029.56
+RMSE: 3077140.81
+R2: 0.84
+
+With masking
+MAE:  1931914.52
+RMSE: 2974040.48
+R2: 0.85
