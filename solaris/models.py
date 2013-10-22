@@ -943,6 +943,11 @@ class EdgeLocal(BaseEstimator, RegressorMixin):
                  ]
         self.pipeline = Pipeline(steps)
 
+    def _load_grid_elev(self):
+        import netCDF4
+        ds = netCDF4.Dataset('data/gefs_elevations.nc')
+        return ds.variables['elevation_control'][:]
+
     def _transform(self, X):
         n_days = X.shape[0]
         n_stations = X.station_info.shape[0]
@@ -958,18 +963,23 @@ class EdgeLocal(BaseEstimator, RegressorMixin):
 
         grid_coord = np.c_[X.lat[lat_idx + lat_offsets],
                            X.lon[lon_idx + lon_offsets] - 360.]
+        grid_elev = self._load_grid_elev()[lat_idx + lat_offsets,
+                                           lon_idx + lon_offsets][:, np.newaxis]
         rel_coord = ll_coord - grid_coord
 
         # coordindate and date features
         rel_coord = np.tile(rel_coord, (n_days, 1)).astype(np.float32)
         abs_coord = np.tile(ll_coord, (n_days, 1)).astype(np.float32)
-        elev_coord = np.tile(X.station_info[:, 2:3], (n_days, 1)).astype(np.float32)
+        elev_coord = np.tile(X.station_info[:, 2].repeat(4)[:, np.newaxis],
+                             (n_days, 1)).astype(np.float32)
         doy = X.date.repeat(n_stations * 4)[:, np.newaxis].astype(np.float32)
 
-        blocks = [rel_coord, abs_coord, elev_coord, doy]
+        grid_coord = np.tile(grid_coord, (n_days, 1)).astype(np.float32)
+        grid_elev = np.tile(grid_elev, (n_days, 1)).astype(np.float32)
+        blocks = [grid_coord, rel_coord, abs_coord, elev_coord,
+                  grid_elev, doy]
 
         # FIXME add fx_names
-        # FXIME add grid cell elevation
 
         for block_name in self.block_names:
             nm_mean = X[block_name].mean(axis=2).astype(np.float32)
@@ -986,6 +996,9 @@ class EdgeLocal(BaseEstimator, RegressorMixin):
             out= out.swapaxes(1, 2)
             out = out.reshape((out.shape[0] * out.shape[1], -1))
             blocks.append(out)
+
+        for b in blocks:
+            print b.shape
 
         out = np.hstack(blocks).astype(np.float32)
         return out

@@ -121,21 +121,21 @@ def train_test(args):
     # est = RidgeCV(alphas=10.0 ** np.arange(-4, 3, 1), normalize=True)
     est = GradientBoostingRegressor(n_estimators=2000, verbose=1, max_depth=6,
                                     min_samples_leaf=9, learning_rate=0.02,
-                                    max_features=33, random_state=1,
+                                    max_features=30, random_state=1,
                                     subsample=1.0, loss='lad',
                                     #init=ZeroEstimator()
                                     )
 
     model_cls = MODELS[args['<model>']]
     model = model_cls(est=est,
-                      with_stationinfo=True,
-                      with_date=True, with_solar=True,
-                      with_mask=True,
-                      #intp_blocks=('nm_intp',),
-                      #with_climate=True,
-                      with_mean_history=False,
-                      with_history=False,
-                      with_mask_hard=True
+                      # with_stationinfo=True,
+                      # with_date=True, with_solar=True,
+                      # with_mask=True,
+                      # #intp_blocks=('nm_intp',),
+                      # #with_climate=True,
+                      # with_mean_history=False,
+                      # with_history=False,
+                      # with_mask_hard=True
                       )
 
 
