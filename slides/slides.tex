@@ -122,13 +122,17 @@ For each day $d$, period $h$ and type $f$ of meteorological measurement:
 
 \begin{enumerate}
 
-\item Build a local learning set ${\cal L}_{dhf} = \{ (\mathbf{x}_i = (\text{lat}_i,
-\text{lon}_i, \text{elevation}_i), y_i = \overline{m_{idhf}} ) \}$,  where
-$\overline{m_{idhf}}$ is the average value of measurements $m_{idhf}$ of type $f$, at GEFS location $i$, day $d$ and period $h$;
+\item Build a local learning set $${\cal L}_{dhf} = \{ (\mathbf{x}_i =
+(\text{lat}_i, \text{lon}_i, \text{elevation}_i), y_i = \overline{m_{idhf}} )
+\},$$  where $\overline{m_{idhf}}$ is the average value (over the ensemble) of
+measurements $m_{idhf}$ of type $f$, at GEFS location $i$, day $d$ and period
+$h$;
 
-\item Learn a Gaussian Process from ${\cal L}_{dhf}$, for predicting measurements $f$ from coordinates;
+\item Learn a Gaussian Process from ${\cal L}_{dhf}$, for predicting
+measurements from coordinates;
 
-\item Predict measurement estimates $\widehat{m_{jdhf}}$ at Mesonet stations $j$ from their coordinates.
+\item Predict measurement estimates $\widehat{m_{jdhf}}$ at Mesonet stations
+$j$ from their coordinates.
 
 \end{enumerate}
 
@@ -139,11 +143,14 @@ $\overline{m_{idhf}}$ is the average value of measurements $m_{idhf}$ of type $f
 
 \begin{frame}{Feature engineering}
 
-\textbf{Goal:} Build a learning set from the set of measurement estimates.
+\textbf{Goal:} Build a learning set ${\cal L}$ from the measurement estimates.
 
 \begin{enumerate}
 
-\item Concatenate the estimates at all periods $h$ and for all types $f$, for each Mesonet station $j$ and day $d$: $${\cal L} = \{ (\mathbf{x}_{jd} = (\widehat{m_{jd{h_1}{f_1}}}, \widehat{m_{jd{h_1}{f_2}}}, ...), y_{jd} = p_{jd}) \}$$ where $p_{jd}$ is the energy production at Mesonet station $j$ and day $d$.
+\item Concatenate the estimates at all periods $h$ and for all types $f$, for
+each Mesonet station $j$ and day $d$:
+$${\cal L} = \{ (\mathbf{x}_{jd} = (\widehat{m_{jd{h_1}{f_1}}}, \widehat{m_{jd{h_1}{f_2}}}, ...), y_{jd} = p_{jd}) \}$$
+where $p_{jd}$ is the energy production at Mesonet station $j$ and day $d$.
 
 \item Extend inputs $\mathbf{x}_{jd}$ with engineered features:
 \begin{itemize}
@@ -152,6 +159,7 @@ $\overline{m_{idhf}}$ is the average value of measurements $m_{idhf}$ of type $f
 \item Spatial features (latitude, longitude, elevation)
 \item Non-linear combinations of measurement estimates
 \item Daily mean estimates
+\item
 \end{itemize}
 
 \end{enumerate}
@@ -163,7 +171,10 @@ $\overline{m_{idhf}}$ is the average value of measurements $m_{idhf}$ of type $f
 
 \begin{frame}{Predicting energy production}
 
-\textbf{Goal:} Predict daily energy production at each Mesonet station from the extended set of measurements.
+\textbf{Goal:} Predict daily energy production at each Mesonet station from the
+extended set of measurements.
+
+% robust loss function
 
 \end{frame}
 
