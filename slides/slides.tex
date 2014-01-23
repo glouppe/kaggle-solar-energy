@@ -114,7 +114,7 @@ Université de Liège, Belgium}
 
 \begin{frame}{Kriging}
 
-\textbf{Goal:} Obtain local meteorological measurements at each Mesonet site.
+\textbf{Goal:} Obtain local meteorological measurements at Mesonet sites.
 
 \vskip0.25cm
 
@@ -172,10 +172,16 @@ where $p_{jd}$ is the energy production at Mesonet station $j$ and day $d$.
 
 \begin{frame}{Predicting energy production}
 
-\textbf{Goal:} Predict daily energy production at each Mesonet station from the
-extended set of measurements.
+\textbf{Goal:} Predict daily energy production at Mesonet sites.
 
-% robust loss function
+\begin{enumerate}
+\item Learn a model using Gradient Boosted Regression Trees (\texttt{sklearn.ensemble.GradientBoostingRegressor}), predicting output $y$ from inputs $\mathbf{x}$;
+    \begin{itemize}
+        \item Optimize hyper-parameters on an internal validation set;
+        \item Use the \textit{Least Absolute Deviation} loss for robustness;
+    \end{itemize}
+\item For further robustness, repeat Step 1 several times (using different random seeds) and aggregate the predictions of all models.
+\end{enumerate}
 
 \end{frame}
 
