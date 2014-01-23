@@ -9,7 +9,6 @@
 \usepackage{verbatim}
 \usepackage{url}
 
-
 \hypersetup{colorlinks=true, linkcolor=black, urlcolor=blue}
 \usetheme{boxes}
 \beamertemplatenavigationsymbolsempty
@@ -61,6 +60,24 @@ Université de Liège, Belgium}
 % Slide 4 =====================================================================
 
 \begin{frame}{Kriging}
+
+\textbf{Goal:} Obtain local meteorological measurements at each Mesonet station.
+
+\vskip0.5cm
+
+For each day $d$, period $h$ and type $f$ of meteorological measurement:
+
+\begin{enumerate}
+
+\item Build a training set ${\cal L} = \{ (\mathbf{x}_i = (\text{lat}_i,
+\text{lon}_i, \text{elevation}_i), y_i = \overline{f_i} ) \}$,  where
+$\overline{f_i}$ is the average value of $f$ at location $i$, day $d$ and period $h$;
+
+\item Learn a Gaussian Process from ${\cal L}$, for predicting measurements of type $f$ from coordinates;
+
+\item Predict the measurements $f$ at Mesonet stations for day $d$ and period $h$ using their coordinates.
+
+\end{enumerate}
 
 \end{frame}
 
