@@ -103,7 +103,7 @@ Université de Liège, Belgium}
 
 \begin{enumerate}
 \item Interpolation of meteorological measurements from GEFS grid points onto Mesonet stations;
-\item Construction of new features from the interpolated measurements;
+\item Construction of new features from the measurement estimates;
 \item Prediction of daily energy production using Gradient Boosted Regression Trees.
 \end{enumerate}
 
@@ -116,19 +116,19 @@ Université de Liège, Belgium}
 
 \textbf{Goal:} Obtain local meteorological measurements at each Mesonet station.
 
-\vskip0.5cm
+\vskip0.25cm
 
 For each day $d$, period $h$ and type $f$ of meteorological measurement:
 
 \begin{enumerate}
 
-\item Build a training set ${\cal L} = \{ (\mathbf{x}_i = (\text{lat}_i,
-\text{lon}_i, \text{elevation}_i), y_i = \overline{f_i} ) \}$,  where
-$\overline{f_i}$ is the average value of $f$ at location $i$, day $d$ and period $h$;
+\item Build a local learning set ${\cal L}_{dhf} = \{ (\mathbf{x}_i = (\text{lat}_i,
+\text{lon}_i, \text{elevation}_i), y_i = \overline{m_{idhf}} ) \}$,  where
+$\overline{m_{idhf}}$ is the average value of measurements $m_{idhf}$ of type $f$, at GEFS location $i$, day $d$ and period $h$;
 
-\item Learn a Gaussian Process from ${\cal L}$, for predicting measurements of type $f$ from coordinates;
+\item Learn a Gaussian Process from ${\cal L}_{dhf}$, for predicting measurements from coordinates;
 
-\item Predict the measurements $f$ at Mesonet stations for day $d$ and period $h$ using their coordinates.
+\item Predict measurement estimates $\widehat{m_{jdhf}}$ at Mesonet stations $j$ from their coordinates.
 
 \end{enumerate}
 
@@ -139,12 +139,31 @@ $\overline{f_i}$ is the average value of $f$ at location $i$, day $d$ and period
 
 \begin{frame}{Feature engineering}
 
+\textbf{Goal:} Build a learning set from the set of interpolated measurements.
+
+\begin{enumerate}
+
+\item For each Mesonet station $j$ and day $d$, concatenate the estimates at all periods $h$ and for all types $f$: $${\cal L} = \{ (\mathbf{x}_{jd} = (\widehat{m_{jd{h_1}{f_1}}}, \widehat{m_{jd{h_1}{f_2}}}, ...), y_{jd} = p_{jd}) \}$$ where $p_{jd}$ is the energy production at Mesonet station $j$ and day $d$.
+
+\item Extend inputs $\mathbf{x}_{jd}$ with engineered features:
+\begin{itemize}
+\item Solar features (delta between sunrise and sunset)
+\item Temporal features (day of year, month)
+\item Spatial features (latitude, longitude, elevation)
+\item Non-linear combinations of measurement estimates
+\item Daily mean estimates
+\end{itemize}
+
+\end{enumerate}
+
 \end{frame}
 
 
 % Slide 6 =====================================================================
 
 \begin{frame}{Predicting energy production}
+
+\textbf{Goal:} Predict daily energy production at each Mesonet station from the extended set of measurements.
 
 \end{frame}
 
