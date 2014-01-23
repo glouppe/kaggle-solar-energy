@@ -33,13 +33,45 @@ Université de Liège, Belgium}
 % Slide 1 =====================================================================
 
 \begin{frame}{Problem statement}
-
+  \begin{itemize}
+     \item Short term forecasting of daily solar energy production
+  \end{itemize}
 \end{frame}
 
 
 % Slide 2 =====================================================================
 
 \begin{frame}{Data}
+
+\begin{columns}[T]
+    \begin{column}{.45\textwidth}
+
+\begin{block}{Solar energy production}
+  \begin{itemize}
+     \item 98 Oklahoma Mesonet sites
+     \item Total incoming solar energy in $J m^{-2}$
+     \item Time period: 1994 - 2007
+  \end{itemize}
+\end{block}
+
+    \end{column}
+    \begin{column}{.45\textwidth}
+
+  \begin{figure}
+    \includegraphics[width=\textwidth]{images/gefs_mesonet_stations.png}\\
+    {\color{gray}\tiny{Courtesy: Dr. Amy McGovern}}
+  \end{figure}
+
+    \end{column}
+  \end{columns}
+
+\begin{block}{Numerical weather prediction}
+\begin{itemize}
+     \item NOAA/NCEP GEFS Reforecast, 5 forecasts per day
+     \item Ensemble comprises 11 members (one control)
+     \item 15 variables (temp, humidity, upward radiative flux, ...)
+  \end{itemize}
+\end{block}
 
 \end{frame}
 
