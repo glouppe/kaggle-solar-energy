@@ -129,7 +129,8 @@ measurements $m_{idhf}$ of type $f$, at GEFS location $i$, day $d$ and period
 $h$;
 
 \item Learn a Gaussian Process from ${\cal L}_{dhf}$, for predicting
-measurements from coordinates;
+measurements from coordinates;\\
+{\scriptsize(Fitting is perfomed using \textit{nuggets} to account for noise in the measurements.)}
 
 \item Predict measurement estimates $\widehat{m_{jdhf}}$ at Mesonet stations
 $j$ from their coordinates.
@@ -159,7 +160,7 @@ where $p_{jd}$ is the energy production at Mesonet station $j$ and day $d$.
 \item Spatial features (latitude, longitude, elevation)
 \item Non-linear combinations of measurement estimates
 \item Daily mean estimates
-\item
+\item Variance of the measurement estimates, as produced by the Gaussian Processes
 \end{itemize}
 
 \end{enumerate}
