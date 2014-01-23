@@ -33,9 +33,30 @@ Université de Liège, Belgium}
 % Slide 1 =====================================================================
 
 \begin{frame}{Problem statement}
-  \begin{itemize}
-     \item Short term forecasting of daily solar energy production
-  \end{itemize}
+  \begin{block}{Goal}
+      Short-term forecasting of daily solar energy production based on weather forecasts from numerical weather prediction (NWP) models.
+  \end{block}
+
+
+\begin{columns}[T]
+\begin{column}{.45\textwidth}
+
+  \begin{block}{Challenges}
+      \begin{itemize}
+         \item High volatility  % (due to rapidly changing weather)
+         \item Noisy response  % (hardware failure)
+         \item Noisy inputs % (inaccuracy of NWP model)
+      \end{itemize}
+  \end{block}
+
+\end{column}
+\begin{column}{.45\textwidth}
+  \begin{figure}
+    \includegraphics[width=\textwidth]{images/volatility.pdf}
+  \end{figure}
+
+\end{column}
+\end{columns}
 \end{frame}
 
 
