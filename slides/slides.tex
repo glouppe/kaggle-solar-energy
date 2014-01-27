@@ -14,6 +14,10 @@
 \beamertemplatenavigationsymbolsempty
 \setbeamertemplate{sections/subsections in toc}[circle]
 
+\usepackage{pifont}
+\newcommand{\cmark}{\ding{51}}%
+\newcommand{\xmark}{\ding{55}}%
+
 \title{Forecasting Daily Solar Energy Production Using Robust Regression Techniques}
 % \author{Gilles Louppe and Peter Prettenhofer}
 % \institute{Université de Liège, Belgium\\
@@ -125,9 +129,9 @@ Peter Prettenhofer (\href{https://twitter.com/pprett}{@pprett})\\
 \begin{frame}{Overview of our approach}
 
 \begin{enumerate}
-\item Interpolation of meteorological measurements from GEFS grid points onto Mesonet sites;
-\item Construction of new variables from the measurement estimates;
-\item Prediction of daily energy production using Gradient Boosted Regression Trees.
+\item \textbf{Interpolation} of meteorological measurements from GEFS grid points onto Mesonet sites;
+\item Construction of \textbf{new variables} from the measurement estimates;
+\item \textbf{Forecasting} of daily energy production using Gradient Boosted Regression Trees.
 \end{enumerate}
 
 \end{frame}
@@ -235,7 +239,7 @@ $${MAE} = \frac{1}{JD} \sum_{j=1}^{J} \sum_{d=1}^{D} | p_{jd} - \hat{p}_{jd} | $
 
 % Slide 8 =====================================================================
 
-\begin{frame}{Error Analysis}
+\begin{frame}{Error analysis}
 
 \begin{figure}
     \centering
@@ -250,20 +254,30 @@ $${MAE} = \frac{1}{JD} \sum_{j=1}^{J} \sum_{d=1}^{D} | p_{jd} - \hat{p}_{jd} | $
 
 \begin{frame}{Conclusions}
 
-\begin{itemize}
-  \item We're awesome
-\end{itemize}
+{\color{green} \cmark} \textbf{Competitive} results (4th position);
 
+\vspace{0.5cm}
+
+{\color{green} \cmark} \textbf{Cautious} and \textbf{robust} approach at all steps of the pipeline;
+
+\vspace{0.5cm}
+
+{\color{red} \xmark} Including additional data from nearest GEFS grid points might have further improved our results.
 
 \end{frame}
 
 
 % Backup Slides =====================================================================
-\begin{frame}{Backup Slides}
+\begin{frame}
+
+\centering
+\it Backup Slides
+
 \end{frame}
 
+
 % Illustration of Kriging ===========================================================
-\begin{frame}{Kriging Illustration}
+\begin{frame}{Kriging illustration}
 
 \begin{figure}
     \includegraphics[scale=0.35]{images/kriging_nugget_interpolation.png}
