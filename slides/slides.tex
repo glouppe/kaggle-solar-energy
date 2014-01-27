@@ -213,8 +213,8 @@ where $p_{jd}$ is the energy production at Mesonet station $j$ and day $d$.
 \begin{enumerate}
 \item Learn a model using Gradient Boosted Regression Trees (\texttt{sklearn.ensemble.GradientBoostingRegressor}), predicting output $y$ from inputs $\mathbf{x}$;
     \begin{itemize}
-        \item Optimize hyper-parameters on an internal validation set;
         \item Use the \textit{Least Absolute Deviation} loss for robustness;
+        \item Optimize hyper-parameters on an internal validation set;
     \end{itemize}
 \item For further robustness, repeat Step 1 several times (using different random seeds) and aggregate the predictions of all models.
 \end{enumerate}
