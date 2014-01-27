@@ -43,9 +43,10 @@ Université de Liège, Belgium}
 
   \begin{block}{Challenges}
       \begin{itemize}
-         \item High volatility  % (due to rapidly changing weather)
-         \item Noisy response  % (hardware failure)
-         \item Noisy inputs % (inaccuracy of NWP model)
+         \item High volatility \\{\tiny rapidly changing weather conditions}
+
+         \item Noisy response \\ {\tiny hardware failure}
+         \item Noisy inputs \\ {\tiny inaccuracy of NWP model}
       \end{itemize}
   \end{block}
 
@@ -139,6 +140,8 @@ $j$ from their coordinates.
 
 \end{frame}
 
+%% NOTE: to illustrate Kriging interpolation we can use this plot: https://www.dropbox.com/s/as791zl9w166ihn/kriging_nugget_interpolation.png
+
 
 % Slide 5 =====================================================================
 
@@ -189,9 +192,49 @@ where $p_{jd}$ is the energy production at Mesonet station $j$ and day $d$.
 % Slide 7 =====================================================================
 
 \begin{frame}{Results}
+  \begin{block}{Evaluation}
+      \begin{itemize}
+          \item Held-out data from 2008 - 2012.
+          \item Mean Absolute Error (MAE) as metric:\\
+$${MAE} = \frac{1}{JD} \sum_{j=1}^{J} \sum_{d=1}^{D} | p_{jd} - \hat{p}_{jd} | $$
+      \end{itemize}
+  \end{block}
+  \begin{block}{Results}
+        \vspace*{0.4cm}
+        \begin{tabular}{ l c r }
+          \textbf{Method} & \textbf{Heldout-Score [MAE]} & \textbf{$\Delta$ [\%]} \\
+          GMM & 4019469.94 & 46.19\% \\
+          Spline Interp. & 2611293.30 & 17.17\% \\
+          Kriging + GBRT & 2162799.74 & - \\
+          Best & 2107588.17 & -2.62\% \\
+        \end{tabular}
+  \end{block}
+\end{frame}
+
+% Slide 8 =====================================================================
+
+\begin{frame}{Error Analysis}
+
+\begin{figure}
+    \hspace*{-2.2cm}\includegraphics[width=1.4\textwidth]{images/hk_11_err1.pdf}
+\end{figure}
+
 
 \end{frame}
 
+
+% Backup Slides =====================================================================
+\begin{frame}{Backup Slides}
+\end{frame}
+
+% Illustration of Kriging ===========================================================
+\begin{frame}{Kriging Illustration}
+
+\begin{figure}
+    \includegraphics[scale=0.35]{images/kriging_nugget_interpolation.png}
+\end{figure}
+
+\end{frame}
 
 
 \end{document}
